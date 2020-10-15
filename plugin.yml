@@ -3,4 +3,4 @@ main: kiviuly.BigBangShooter.Main
 version: 0.1
 commands:
   bbs:
-  	usage: /bbs help - For help message
+    usage: /bbs help - For help message

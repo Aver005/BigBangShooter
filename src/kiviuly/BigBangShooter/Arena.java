@@ -48,6 +48,8 @@ public class Arena
 	public boolean isStarted = false;
 	public boolean isStarting = false;
 	
+	private Location lobbyLocation = null;
+	
 	
 	// Match vars
 	
@@ -62,8 +64,8 @@ public class Arena
 	
 	private Location plantedBomb = null;
 	
-	private Inventory defuseInventory = Bukkit.createInventory(null, 27, "Обезвреживание бомбы");
-	private Inventory plantInventory = Bukkit.createInventory(null, 27, "Закладка бомбы");
+	private Inventory defuseInventory = Bukkit.createInventory(null, 27, "§9§lОбезвреживание бомбы");
+	private Inventory plantInventory = Bukkit.createInventory(null, 27, "§9§lЗакладка бомбы");
 	
 	public boolean isPlanted = false;
 	public boolean isPlanting = false;
@@ -98,18 +100,18 @@ public class Arena
 		bombItem = new ItemStack(bombMaterial);
 		ItemMeta meta = bombItem.getItemMeta();
 		ArrayList<String> lore = new ArrayList<>();
-		meta.setDisplayName("C4");
-		lore.add("Нажмите на красную терракоту");
-		lore.add("Чтобы заложить бомбу");
+		meta.setDisplayName("§c§lC4");
+		lore.add("§eНажмите на §lкрасную терракоту");
+		lore.add("§eЧтобы заложить бомбу");
 		meta.setLore(lore);
 		bombItem.setItemMeta(meta);
 		
 		defuseKitsItem = new ItemStack(defuseKitsMaterial);
 		meta = defuseKitsItem.getItemMeta();
 		lore = new ArrayList<>();
-		meta.setDisplayName("Defuse Kits");
-		lore.add("Нажмите на сундук-бомбу");
-		lore.add("Чтобы начать её обезвреживать");
+		meta.setDisplayName("§7§lDefuse Kits");
+		lore.add("§eНажмите на §lсундук-бомбу");
+		lore.add("§eЧтобы начать её обезвреживать");
 		meta.setLore(lore);
 		defuseKitsItem.setItemMeta(meta);
 	}
@@ -126,7 +128,7 @@ public class Arena
 			{
 				if (livePlayers.size() < minPlayers) 
 				{
-					bossbar.setTitle("Ожидание");
+					bossbar.setTitle("§eОжидание");
 					bossbar.setProgress(0.0);
 					bossbar.setColor(BarColor.WHITE);
 					bossbar.setStyle(BarStyle.SEGMENTED_20);
@@ -140,7 +142,7 @@ public class Arena
 				{
 					isStarted = true;
 					isStarting = false;
-					bossbar.setTitle("Раунд 1 | 0 : 0");
+					bossbar.setTitle("§eРаунд 1 §7§l| §90 §7§l: §60");
 					bossbar.setProgress(1.0);
 					bossbar.setColor(BarColor.GREEN);
 					bossbar.setStyle(BarStyle.SOLID);
@@ -159,8 +161,8 @@ public class Arena
 						
 						teleportToSpawns(pl);
 						int team = getPlayerTeam(pl);
-						if (team == 0) {pl.sendTitle("Раунд 1", "Вы играете за ЗАЩИТУ");}
-						if (team == 1) {pl.sendTitle("Раунд 1", "Вы играете за АТАКУ");}
+						if (team == 0) {pl.sendTitle("§eРаунд 1", "§2Вы играете за §9ЗАЩИТУ");}
+						if (team == 1) {pl.sendTitle("§eРаунд 1", "§2Вы играете за §6АТАКУ");}
 					}
 					
 					cancel(); 
@@ -176,7 +178,7 @@ public class Arena
 					pl.setLevel(timer);
 					pl.setExp(Float.parseFloat(bossbar.getProgress()+""));
 					
-					if (timer <= 5 || timer % 5 == 0) {pl.sendTitle("Начало через "+timer+" сек", "");}
+					if (timer <= 5 || timer % 5 == 0) {pl.sendTitle("§aНачало через §e"+timer+" §aсек", "");}
 					
 				}
 				
@@ -192,7 +194,7 @@ public class Arena
 			{
 				if (livePlayers.size() < 2) 
 				{
-					bossbar.setTitle("Игра закончена: нет игроков");
+					bossbar.setTitle("§eИгра закончена: §lнет игроков");
 					bossbar.setProgress(0.0);
 					bossbar.setColor(BarColor.RED);
 					bossbar.setStyle(BarStyle.SOLID);
@@ -230,13 +232,13 @@ public class Arena
 							int team = getPlayerTeam(pl);
 							if (team == 0) 
 							{
-								if (winTeam == 0) {pl.sendTitle("Победа!", "Время закончилось. Бомбы нет.");}
-								if (winTeam == 1) {pl.sendTitle("Поражение...", "Время закончилось. Бомбы поставлена.");}
+								if (winTeam == 0) {pl.sendTitle("§a§lПобеда!", "§2Время закончилось. Бомбы нет.");}
+								if (winTeam == 1) {pl.sendTitle("§c§lПоражение...", "§cВремя закончилось. Бомбы поставлена.");}
 							}
 							else 
 							{
-								if (winTeam == 0) {pl.sendTitle("Поражение...", "Время закончилось. Бомбы нет.");}
-								if (winTeam == 1) {pl.sendTitle("Победа!", "Бомба взорвалась.");}
+								if (winTeam == 0) {pl.sendTitle("§c§lПоражение...", "§cВремя закончилось. Бомбы нет.");}
+								if (winTeam == 1) {pl.sendTitle("§a§lПобеда!", "§aБомба взорвалась.");}
 							}
 						}
 					}
@@ -266,9 +268,9 @@ public class Arena
 								if (pl == null) {livePlayers.remove(plID); continue;}
 								if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
 								
-								if (defendRoundsWin > attackRoundsWin) {pl.sendTitle("Игра закончена!", "Матч выиграла: ЗАЩИТА");}
-								if (defendRoundsWin < attackRoundsWin) {pl.sendTitle("Игра закончена!", "Матч выиграла: АТАКА");}
-								if (defendRoundsWin == attackRoundsWin) {pl.sendTitle("Игра закончена!", "Ничья!");}
+								if (defendRoundsWin > attackRoundsWin) {pl.sendTitle("§e§lИгра закончена!", "§eМатч выиграла: §9ЗАЩИТА");}
+								if (defendRoundsWin < attackRoundsWin) {pl.sendTitle("§e§lИгра закончена!", "§eМатч выиграла: §6АТАКА");}
+								if (defendRoundsWin == attackRoundsWin) {pl.sendTitle("§e§lИгра закончена!", "§eНичья!");}
 							}
 							return;
 						}
@@ -276,7 +278,7 @@ public class Arena
 						time = 8;
 						roundState = "FREEZE TIME";
 						
-						bossbar.setTitle("Раунд "+(round+1)+" | "+teamDefend+" : "+teamAttack);
+						bossbar.setTitle("§eРаунд "+(round+1)+" §7§l| §9"+teamDefend+" §7§l: §6"+teamAttack);
 						bossbar.setProgress(1.0);
 						bossbar.setColor(BarColor.GREEN);
 						bossbar.setStyle(BarStyle.SOLID);
@@ -309,13 +311,13 @@ public class Arena
 						
 						if (roundState == "PLAYING")
 						{
-							title = "Осталось "+time+" сек";
-							footer = "Поторопитесь!";
+							title = "§eОсталось "+time+" сек";
+							footer = "§e§lПоторопитесь!";
 						}
 						else if (roundState == "FREEZE TIME")
 						{
-							title = "Раунд начнётся через "+time+" сек";
-							footer = "Вы готовы?";
+							title = "§2Раунд начнётся через §e"+time+" §2сек";
+							footer = "§2Вы готовы?";
 						}
 						
 						pl.sendTitle(title, footer);
@@ -333,12 +335,40 @@ public class Arena
 	
 	public void addPlayer(Player p) 
 	{
+		UUID id = p.getUniqueId();
+		if (getAllPlayers().contains(id)) {return;}
+		if (isStarted || !isEnabled) {return;}
+		livePlayers.add(id);
+		main.savePlayerData(p);
+		main.clearPlayer(p);
+		p.teleport(lobbyLocation);
+		giveClassItem(p);
 		
+		if (livePlayers.size() >= minPlayers) {Start(20);}
 	}
 	
+	public void giveClassItem(Player p)
+	{
+		ItemStack item = new ItemStack(Material.MAGMA);
+		ItemMeta meta = item.getItemMeta();
+		meta.setDisplayName("§b§lВыбор оперативника");
+		item.setItemMeta(meta);
+		p.getInventory().setItem(8,item);
+	}
+
 	public void kickPlayer(Player p) 
 	{
+		UUID id = p.getUniqueId();
+		if (!getAllPlayers().contains(id)) {return;}
+		deathPlayers.remove(id);
+		teamAttack.remove(id);
+		teamDefend.remove(id);
+		livePlayers.remove(id);
+		spectators.remove(id);
+		main.clearPlayer(p);
+		main.loadPlayerData(p);
 		
+		//if (livePlayers.size() < minPlayers) {Stop(20);}
 	}
 	
 	public void deathPlayer(Player p) 
@@ -388,8 +418,8 @@ public class Arena
 				if (!pl.isOnline()) {livePlayers.remove(id); continue;}
 				
 				int team = getPlayerTeam(pl);
-				if (team == 0) {pl.sendTitle("Поражение...", "Вся ваша команда была убита.");}
-				else {pl.sendTitle("Победа!", "Все защитники были устранены.");}
+				if (team == 0) {pl.sendTitle("§c§lПоражение...", "§cВся ваша команда была убита.");}
+				else {pl.sendTitle("§a§lПобеда!", "§aВсе защитники были устранены.");}
 			}
 			
 			roundState = "ROUND END"; 
@@ -408,8 +438,8 @@ public class Arena
 				if (!pl.isOnline()) {livePlayers.remove(id); continue;}
 				
 				int team = getPlayerTeam(pl);
-				if (team == 1) {pl.sendTitle("Поражение...", "Вся ваша команда была убита.");}
-				else {pl.sendTitle("Победа!", "Все атакующие были устранены.");}
+				if (team == 1) {pl.sendTitle("§c§lПоражение...", "§cВся ваша команда была убита.");}
+				else {pl.sendTitle("§a§lПобеда!", "§aВсе атакующие были устранены.");}
 			}
 			
 			roundState = "ROUND END"; 
@@ -422,10 +452,11 @@ public class Arena
 		UUID plID = pl.getUniqueId();
 		Random rnd = new Random(); 
 		
-		int t = -1;
+		int t = -2;
 		if (teamAttack.contains(plID)) {t = 1;}
 		if (teamDefend.contains(plID)) {t = 0;}
-		if (t == -1) 
+		if (spectators.contains(plID)) {t = -1;}
+		if (t == -2) 
 		{
 			if (teamAttack.size() > teamDefend.size()) {t = 0;} else
 			if (teamAttack.size() < teamDefend.size()) {t = 1;} else
@@ -459,6 +490,7 @@ public class Arena
 			l = getAttackSpawns().get(_tempTeam);
 		}
 		
+		giveClassItem(pl);
 		pl.teleport(l);
 	}
 	
@@ -802,5 +834,15 @@ public class Arena
 
 	public void setDefuseKitsItem(ItemStack defuseKitsItem) {
 		this.defuseKitsItem = defuseKitsItem;
+	}
+
+	public Location getLobbyLocation()
+	{
+		return lobbyLocation;
+	}
+
+	public void setLobbyLocation(Location lobbyLocation)
+	{
+		this.lobbyLocation = lobbyLocation;
 	}
 }
