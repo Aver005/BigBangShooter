@@ -326,6 +326,12 @@ public class Events implements Listener
 			e.setCancelled(true);
 			Inventory inv = Bukkit.createInventory(null, 27, "§9§lВыбор оперативника");
 			
+			int opsCount = main.config.getInt("OperatorsInfo.OperatorsAviabled", 0);
+			for(int i = 0; i < opsCount; i++)
+			{
+				
+			}
+			
 			ArrayList<String> lore = new ArrayList<>();
 			item = new ItemStack(Material.IRON_SWORD);
 			meta = item.getItemMeta();
