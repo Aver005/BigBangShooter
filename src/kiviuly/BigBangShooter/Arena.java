@@ -29,7 +29,7 @@ public class Arena
 	private UUID creator;
 	
 	private int maxPlayers = 12;
-	private int minPlayers = 2;
+	private int minPlayers = 1;
 	private int maxRounds = 15;
 	private int roundTime = 180;
 	
@@ -41,6 +41,7 @@ public class Arena
 	private Material bombMaterial = Material.CHEST;
 	private Material defuseKitsMaterial = Material.LEVER;
 	
+	private ItemStack operatorItem = new ItemStack(Material.CHEST);
 	private ItemStack bombItem = null;
 	private ItemStack defuseKitsItem = null;
 	
@@ -49,6 +50,8 @@ public class Arena
 	public boolean isStarting = false;
 	
 	private Location lobbyLocation = null;
+	
+	private HashMap<String, ArrayList<ItemStack>> operatorsItems = new HashMap<>();
 	
 	
 	// Match vars
@@ -66,6 +69,7 @@ public class Arena
 	
 	private Inventory defuseInventory = Bukkit.createInventory(null, 27, "§9§lОбезвреживание бомбы");
 	private Inventory plantInventory = Bukkit.createInventory(null, 27, "§9§lЗакладка бомбы");
+	private Inventory operatorsInventory = Bukkit.createInventory(null, 45, "§9§lВыбор оперативника");
 	
 	public boolean isPlanted = false;
 	public boolean isPlanting = false;
@@ -108,12 +112,19 @@ public class Arena
 		
 		defuseKitsItem = new ItemStack(defuseKitsMaterial);
 		meta = defuseKitsItem.getItemMeta();
-		lore = new ArrayList<>();
+		lore.clear();
 		meta.setDisplayName("§7§lDefuse Kits");
 		lore.add("§eНажмите на §lсундук-бомбу");
 		lore.add("§eЧтобы начать её обезвреживать");
 		meta.setLore(lore);
 		defuseKitsItem.setItemMeta(meta);
+		
+		meta = operatorItem.getItemMeta();
+		lore.clear();
+		meta.setDisplayName("§b§lВыбор оперативника");
+		lore.add("§eОткрыть меню выбора оперативника");
+		meta.setLore(lore);
+		operatorItem.setItemMeta(meta);
 	}
 	
 	public boolean Start(int startTime)
@@ -148,7 +159,7 @@ public class Arena
 					bossbar.setStyle(BarStyle.SOLID);
 					
 					roundState = "FREEZE TIME";
-					time = roundTime;
+					time = 8;
 					round = 0;
 					
 					for(UUID plID : livePlayers)
@@ -158,11 +169,15 @@ public class Arena
 						if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
 						pl.setLevel(timer);
 						pl.setExp(0F);
+						pl.getInventory().clear();
 						
 						teleportToSpawns(pl);
 						int team = getPlayerTeam(pl);
 						if (team == 0) {pl.sendTitle("§eРаунд 1", "§2Вы играете за §9ЗАЩИТУ");}
 						if (team == 1) {pl.sendTitle("§eРаунд 1", "§2Вы играете за §6АТАКУ");}
+						
+						bossbar.addPlayer(pl);
+						pl.getInventory().setItem(8, operatorItem);
 					}
 					
 					cancel(); 
@@ -192,7 +207,7 @@ public class Arena
 		{
 			@Override public void run() 
 			{
-				if (livePlayers.size() < 2) 
+				if (livePlayers.size() < 1 && !roundState.equals("STOP")) 
 				{
 					bossbar.setTitle("§eИгра закончена: §lнет игроков");
 					bossbar.setProgress(0.0);
@@ -207,12 +222,23 @@ public class Arena
 				
 				if (time == 0)
 				{
-					if (roundState == "FREEZE TIME")
+					if (roundState.equals("FREEZE TIME"))
 					{
+						for(UUID plID : livePlayers)
+						{
+							if (plID == null) {continue;}
+							Player pl = Bukkit.getPlayer(plID);
+							if (pl == null) {livePlayers.remove(plID); continue;}
+							if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
+							pl.sendMessage("§2§lРаунд "+(round+1)+" §2начался!");
+							pl.sendTitle("§bРаунд "+(round+1), "***");
+						}
 						time = (int) roundTime;
 						roundState = "PLAYING";
+						return;
 					}
-					else if (roundState == "PLAYING")
+					
+					if (roundState.equals("PLAYING"))
 					{
 						int winTeam = 0;
 						if (isPlanted) {winTeam = 1;}
@@ -225,6 +251,7 @@ public class Arena
 						
 						for(UUID plID : livePlayers)
 						{
+							if (plID == null) {continue;}
 							Player pl = Bukkit.getPlayer(plID);
 							if (pl == null) {livePlayers.remove(plID); continue;}
 							if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
@@ -241,12 +268,16 @@ public class Arena
 								if (winTeam == 1) {pl.sendTitle("§a§lПобеда!", "§aБомба взорвалась.");}
 							}
 						}
+						
+						return;
 					}
-					else if (roundState == "STOP")
+					
+					if (roundState.equals("STOP"))
 					{
 						roundState = "WAITING";
 						for(UUID plID : livePlayers)
 						{
+							if (plID == null) {continue;}
 							Player pl = Bukkit.getPlayer(plID);
 							if (pl == null) {livePlayers.remove(plID); continue;}
 							if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
@@ -254,9 +285,10 @@ public class Arena
 						}
 						
 						cancel();
+						return;
 					}
 					
-					else if (roundState == "ROUND END")
+					if (roundState.equals("ROUND END"))
 					{
 						if (round == maxRounds)
 						{
@@ -264,6 +296,7 @@ public class Arena
 							time = 10;
 							for(UUID plID : livePlayers)
 							{
+								if (plID == null) {continue;}
 								Player pl = Bukkit.getPlayer(plID);
 								if (pl == null) {livePlayers.remove(plID); continue;}
 								if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
@@ -278,17 +311,20 @@ public class Arena
 						time = 8;
 						roundState = "FREEZE TIME";
 						
-						bossbar.setTitle("§eРаунд "+(round+1)+" §7§l| §9"+teamDefend+" §7§l: §6"+teamAttack);
+						bossbar.setTitle("§eРаунд "+(round+1)+" §7§l| §9"+defendRoundsWin+" §7§l: §6"+attackRoundsWin);
 						bossbar.setProgress(1.0);
 						bossbar.setColor(BarColor.GREEN);
 						bossbar.setStyle(BarStyle.SOLID);
 						
 						for(UUID plID : livePlayers)
 						{
+							if (plID == null) {continue;}
 							Player pl = Bukkit.getPlayer(plID);
 							if (pl == null) {livePlayers.remove(plID); continue;}
 							if (!pl.isOnline()) {livePlayers.remove(plID); continue;}
 							teleportToSpawns(pl);
+							pl.getInventory().clear();
+							pl.getInventory().setItem(8, operatorItem);
 						}
 					}
 					
@@ -309,12 +345,12 @@ public class Arena
 						String title = "";
 						String footer = "";
 						
-						if (roundState == "PLAYING")
+						if (roundState.equals("PLAYING"))
 						{
 							title = "§eОсталось "+time+" сек";
 							footer = "§e§lПоторопитесь!";
 						}
-						else if (roundState == "FREEZE TIME")
+						else if (roundState.equals("FREEZE TIME"))
 						{
 							title = "§2Раунд начнётся через §e"+time+" §2сек";
 							footer = "§2Вы готовы?";
@@ -322,13 +358,11 @@ public class Arena
 						
 						pl.sendTitle(title, footer);
 					}
-					
-					
 				}
 				
 				time--;
 			}
-		}.runTaskTimer(main, 20L, 20L);
+		}.runTaskTimer(main, 20L * startTime + 1L, 20L);
 		
 		return true;
 	}
@@ -354,6 +388,9 @@ public class Arena
 		meta.setDisplayName("§b§lВыбор оперативника");
 		item.setItemMeta(meta);
 		p.getInventory().setItem(8,item);
+		UUID id = p.getUniqueId();
+		if (teamAttack.contains(id)) {p.getInventory().addItem(bombItem);}
+		if (teamDefend.contains(id)) {p.getInventory().addItem(defuseKitsItem);}
 	}
 
 	public void kickPlayer(Player p) 
@@ -476,7 +513,7 @@ public class Arena
 		
 		if (t == 0) 
 		{
-			teamDefend.add(plID); 
+			if (!teamDefend.contains(plID)) {teamDefend.add(plID);}
 			int _tempTeam = rnd.nextInt(getDefendSpawns().size()-1);
 			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getDefendSpawns().size()-1);}
 			l = getDefendSpawns().get(_tempTeam);
@@ -484,7 +521,7 @@ public class Arena
 		}
 		else 
 		{
-			teamAttack.add(plID); 
+			if (!teamAttack.contains(plID)) {teamAttack.add(plID);}
 			int _tempTeam = rnd.nextInt(getAttackSpawns().size()-1);
 			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getAttackSpawns().size()-1);}
 			l = getAttackSpawns().get(_tempTeam);
@@ -844,5 +881,29 @@ public class Arena
 	public void setLobbyLocation(Location lobbyLocation)
 	{
 		this.lobbyLocation = lobbyLocation;
+	}
+
+	public Inventory getOperatorsInventory() {
+		return operatorsInventory;
+	}
+
+	public void setOperatorsInventory(Inventory operatorsInventory) {
+		this.operatorsInventory = operatorsInventory;
+	}
+
+	public HashMap<String, ArrayList<ItemStack>> getOperatorsItems() {
+		return operatorsItems;
+	}
+
+	public void setOperatorsItems(HashMap<String, ArrayList<ItemStack>> operatorsItems) {
+		this.operatorsItems = operatorsItems;
+	}
+
+	public ItemStack getOperatorItem() {
+		return operatorItem;
+	}
+
+	public void setOperatorItem(ItemStack operatorItem) {
+		this.operatorItem = operatorItem;
 	}
 }

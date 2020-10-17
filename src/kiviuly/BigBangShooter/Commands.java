@@ -53,7 +53,7 @@ public class Commands implements CommandExecutor
 						return true;
 					}
 					
-					if (sub.equals("setspawn"))
+					if (sub.equals("setlobby"))
 					{
 						if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
 						Arena arena = main.arenas.get(name);
@@ -100,6 +100,12 @@ public class Commands implements CommandExecutor
 						Arena arena = main.arenas.get(name);
 						arena.isEnabled = true;
 						SM(p,"§2Арена §b"+name+" §2успешно §lвключена.");
+						
+						ItemStack is = new ItemStack(Material.WOOL);
+						ItemMeta im = is.getItemMeta();
+						im.setDisplayName(name);
+						is.setItemMeta(im);
+						main.menuInventory.addItem(is);
 						return true;
 					}
 
@@ -109,12 +115,43 @@ public class Commands implements CommandExecutor
 						Arena arena = main.arenas.get(name);
 						arena.isEnabled = false;
 						SM(p,"§2Арена §b"+name+" §2успешно §e§lвыключена.");
+						
+						for(ItemStack is : main.menuInventory)
+						{
+							if (is == null) {continue;}
+							if (!is.hasItemMeta()) {continue;}
+							ItemMeta meta = is.getItemMeta();
+							if (!meta.hasDisplayName()) {continue;}
+							if (meta.getDisplayName().equals(name)) {main.menuInventory.remove(is); return true;}
+						}
 						return true;
 					}
 					
 					if (count >= 3)
 					{
+						if (sub.equals("addoperator"))
+						{
+							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+							Arena arena = main.arenas.get(name);
+							ItemStack[] iss = p.getInventory().getContents();
+							ArrayList<ItemStack> isList = new ArrayList<>();
+							for(ItemStack is : iss) {isList.add(is);}
+							arena.getOperatorsItems().put(args[2], isList);
+							p.sendMessage("§2Предметы для оперативника §b§l"+args[2]+"§2 установлены.");
+							return true;
+						}
 						
+						if (sub.equals("seticon"))
+						{
+							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+							//Arena arena = main.arenas.get(name);
+							ItemStack is = p.getItemInHand();
+							if (is == null) {return true;}
+							if (is.getType().equals(Material.AIR)) {return true;}
+							main.config.set("OperatorsInfo."+args[2]+"-Icon", is);
+							p.sendMessage("§2Предметы для оперативника §b§l"+args[2]+"§2 установлены.");
+							return true;
+						}
 					}
 				}
 			}

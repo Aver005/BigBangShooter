@@ -70,7 +70,7 @@ public class Events implements Listener
 		
 		if (arena.getState().equals("FREEZE TIME"))
 		{
-			if (e.getTo().distance(e.getFrom()) >= 0.2) {e.setCancelled(true);}
+			if (e.getTo().distance(e.getFrom()) > 0) {e.setCancelled(true);}
 		}
 	}
 	
@@ -126,7 +126,26 @@ public class Events implements Listener
 			if (!item.hasItemMeta()) {return;}
 			ItemMeta meta = item.getItemMeta();
 			if (!meta.hasDisplayName()) {return;}
-			String itName = meta.getDisplayName();
+			String itName = main.removeCC(meta.getDisplayName());
+			if (!arena.getOperatorsItems().containsKey(itName)) {p.sendMessage("§cПредметы не найдены."); return;}
+			ArrayList<ItemStack> isList = arena.getOperatorsItems().get(itName);
+			if (isList.size() == 0) {p.sendMessage("§cПредметы не найдены."); return;}
+			p.getInventory().clear();
+			for(ItemStack is : isList)
+			{
+				if (is == null) {continue;}
+				String matName = is.getType().name().toUpperCase();
+				if (matName.contains("HELMET")) {p.getInventory().setHelmet(is); continue;}
+				if (matName.contains("CHESTPLATE")) {p.getInventory().setChestplate(is); continue;}
+				if (matName.contains("LEGGINGS")) {p.getInventory().setLeggings(is); continue;}
+				if (matName.contains("BOOTS")) {p.getInventory().setBoots(is); continue;}
+				p.getInventory().addItem(is);
+			}
+			
+			p.getInventory().setItem(8, arena.getOperatorItem());
+			p.closeInventory();
+			p.sendMessage("§2Предметы оперативника §b§l"+itName+" §2выданы.");
+			return;
 		}
 		
 		if (title.equals("§9§lВыбор арены"))
@@ -141,6 +160,7 @@ public class Events implements Listener
 			Arena arena = main.getArenaByName(itName);
 			if (arena == null) {p.closeInventory(); return;}
 			arena.addPlayer(p);
+			main.players.put(p.getUniqueId(), arena);
 		}
 		
 		if (title.equals("§9§lЗакладка бомбы"))
@@ -324,139 +344,12 @@ public class Events implements Listener
 		if (itName.equals("§b§lВыбор оперативника"))
 		{
 			e.setCancelled(true);
-			Inventory inv = Bukkit.createInventory(null, 27, "§9§lВыбор оперативника");
-			
-			int opsCount = main.config.getInt("OperatorsInfo.OperatorsAviabled", 0);
-			for(int i = 0; i < opsCount; i++)
-			{
-				
-			}
-			
-			ArrayList<String> lore = new ArrayList<>();
-			item = new ItemStack(Material.IRON_SWORD);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Штурмовик");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.BOW);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Лучник");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.SHIELD);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Щитовик");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.SPLASH_POTION);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Маг");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.FEATHER);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Скаут");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.FISHING_ROD);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Пудж");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.GOLDEN_CARROT);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Врач");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.STRING);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Джокер");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.REDSTONE);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Вампир");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.SPECTRAL_ARROW);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Всевидящий");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
-			inv.addItem(item);
-			
-			lore = new ArrayList<>();
-			item = new ItemStack(Material.TRIPWIRE);
-			meta = item.getItemMeta();
-			meta.setDisplayName("§6Посейдон");
-			lore.add("");
-			lore.add("");
-			lore.add("");
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			inv.addItem(item);
+			String s = arena.getState();
+			if (!s.equals("FREEZE TIME") && !s.equals("WAITING")) {return;}
+			Inventory inv = arena.getOperatorsInventory();
+			if (inv == null) {return;}
+			p.openInventory(inv);
+			return;
 		}
 		
 		// Обезвреживание

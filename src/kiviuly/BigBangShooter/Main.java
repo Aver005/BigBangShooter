@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.craftbukkit.v1_12_R1.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -25,6 +27,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
+
+import net.minecraft.server.v1_12_R1.ItemArmor;
 
 public class Main extends JavaPlugin
 {
@@ -86,45 +90,63 @@ public class Main extends JavaPlugin
 			file = new File(mainFolder + "Arenas" + File.separator + arName + ".arena");
 			if (!file.exists()) 
 			{
-				try
-				{
-					file.createNewFile();
-					
-					FileConfiguration yml = YamlConfiguration.loadConfiguration(file);
-					yml.set("ID", arena.getID());
-					yml.set("Name", arena.getName());
-					yml.set("Description", arena.getDescription());
-					yml.set("Creator", arena.getCreator().toString());
-					yml.set("MaxPlayers", arena.getMaxPlayers());
-					yml.set("MinPlayers", arena.getMinPlayers());
-					yml.set("MaxRounds", arena.getMaxRounds());
-					yml.set("RoundTime", arena.getRoundTime());
-					yml.set("Enabled", arena.isEnabled);
-					
-					int i = 0;
-					for(Location l : arena.getDefendSpawns())
-					{
-						if (l == null) {continue;}
-						yml.set("DefendSpawn-"+i, LtoS(l));
-						i++;
-					}
-					yml.set("DefendSpawns", i);
-					
-					i = 0;
-					for(Location l : arena.getAttackSpawns())
-					{
-						if (l == null) {continue;}
-						yml.set("AttackSpawn-"+i, LtoS(l));
-						i++;
-					}
-					yml.set("AttackSpawns", i);
-					yml.save(file);
-				} 
+				try {file.createNewFile();} 
 				catch (IOException e) {e.printStackTrace();}
+			}
+			
+			FileConfiguration yml = YamlConfiguration.loadConfiguration(file);
+			yml.set("ID", arena.getID());
+			yml.set("Name", arena.getName());
+			yml.set("Description", arena.getDescription());
+			yml.set("Creator", arena.getCreator().toString());
+			yml.set("MaxPlayers", arena.getMaxPlayers());
+			yml.set("MinPlayers", arena.getMinPlayers());
+			yml.set("MaxRounds", arena.getMaxRounds());
+			yml.set("RoundTime", arena.getRoundTime());
+			yml.set("Enabled", arena.isEnabled);
+			yml.set("LobbyLocation", arena.getLobbyLocation());
+			
+			
+			int i = 0;
+			HashMap<String, ArrayList<ItemStack>> operatorsItem = arena.getOperatorsItems();
+			for(String opName : operatorsItem.keySet())
+			{
+				ArrayList<ItemStack> isList = operatorsItem.get(opName);
+				if (isList == null) {continue;}
+				if (isList.size() == 0) {continue;}
+				yml.set("OperatorsInfo."+opName+"-Items", isList);
+				yml.set("OperatorsInfo.Operator-"+i, opName);
+				
+				i++;
+			}
+			yml.set("OperatorsInfo.OperatorsAviabled", i);
+			
+			i = 0;
+			for(Location l : arena.getDefendSpawns())
+			{
+				if (l == null) {continue;}
+				yml.set("DefendSpawn-"+i, LtoS(l));
+				i++;
+			}
+			yml.set("DefendSpawns", i);
+			
+			i = 0;
+			for(Location l : arena.getAttackSpawns())
+			{
+				if (l == null) {continue;}
+				yml.set("AttackSpawn-"+i, LtoS(l));
+				i++;
+			}
+			yml.set("AttackSpawns", i);
+			try {
+				yml.save(file);
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	public void loadCFG() 
 	{
 		menuInventory = Bukkit.createInventory(null, 27, "§9§lÂûáîð àðåíû");
@@ -154,10 +176,42 @@ public class Main extends JavaPlugin
 			arena.setMaxRounds(yml.getInt("MaxRounds"));
 			arena.setRoundTime(yml.getInt("RoundTime"));
 			arena.isEnabled = yml.getBoolean("Enabled");
+			arena.setLobbyLocation((Location) yml.get("LobbyLocation", null));
 			
+			int count = yml.getInt("OperatorsInfo.OperatorsAviabled", 0);
+			for(int i = 0; i < count; i++)
+			{
+				String opName = yml.getString("OperatorsInfo.Operator-"+i, "");
+				if (opName.isEmpty()) {continue;}
+				ArrayList<ItemStack> isList = new ArrayList<>();
+				isList = (ArrayList<ItemStack>) yml.get("OperatorsInfo."+opName+"-Items", isList);
+				arena.getOperatorsItems().put(opName, isList);
+				String matName = yml.getString("OperatorsInfo."+opName+"-Icon", "");
+				if (matName.isEmpty()) {matName = "CHEST";}
+				Material m = Material.getMaterial(matName);
+				if (m == null) {m = Material.CHEST;}
+				ItemStack is = new ItemStack(m);
+				ItemMeta im = is.getItemMeta();
+				ArrayList<String> lore = new ArrayList<>();
+				im.setDisplayName("§6§l"+opName);
+				lore.add("");
+				lore.add("§eÏðåäìåòû");
+				for(ItemStack item : isList)
+				{
+					if (item == null) {continue;}
+					if (item.getType().equals(Material.AIR)) {continue;}
+					if (!item.hasItemMeta()) {continue;}
+					ItemMeta meta = item.getItemMeta();
+					String itName = meta.getLocalizedName();
+					if (itName.isEmpty()) {itName = meta.getDisplayName();}
+					lore.add("   §f"+itName);
+				}
+				im.setLore(lore);
+				is.setItemMeta(im);
+				arena.getOperatorsInventory().addItem(is);
+			}
 			
-			
-			int count = yml.getInt("DefendSpawns", 0);
+			count = yml.getInt("DefendSpawns", 0);
 			for(int i = 0; i < count; i++)
 			{
 				String s = yml.getString("DefendSpawn-"+i, "");
@@ -240,6 +294,7 @@ public class Main extends JavaPlugin
 		catch (IOException e) {e.printStackTrace();}
 	}
 	
+	@SuppressWarnings("unchecked")
 	public void loadPlayerData(Player p)
 	{
 		File temp = new File(getDataFolder() + File.separator + "Players");
@@ -296,6 +351,10 @@ public class Main extends JavaPlugin
 	
 	public String removeCC(String s) {return ChatColor.stripColor(s);}
 	public static Main getInstance() {return main;}
+	
+	public boolean isArmor(ItemStack item) {
+	    return (CraftItemStack.asNMSCopy(item).getItem() instanceof ItemArmor);
+	}
 
 	public void OpenMainMenu(Player p)
 	{
