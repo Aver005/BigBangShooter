@@ -2,14 +2,20 @@ package kiviuly.BigBangShooter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
 
 public class Commands implements CommandExecutor 
 {
@@ -36,7 +42,22 @@ public class Commands implements CommandExecutor
 					Arena arena = main.getPlayerArena(p);
 					if (arena == null) {SM(p,"§cВы не в игре."); return true;}
 					arena.kickPlayer(p);
+					main.players.remove(p.getUniqueId());
 					SM(p,"§2Вы вышли из матча. §eНе хорошо это :(");
+					return true;
+				}
+				
+				if (sub.equals("save"))
+				{
+					main.saveCFG(false);
+					SM(p, "§2Конфигурация сохранена.");
+					return true;
+				}
+				
+				if (sub.equals("reload"))
+				{
+					main.loadCFG();
+					SM(p, "§2Конфигурация перезагружена.");
 					return true;
 				}
 				
@@ -50,6 +71,25 @@ public class Commands implements CommandExecutor
 						Arena arena = new Arena(name, p.getUniqueId());
 						main.arenas.put(name, arena);
 						SM(p,"§2Арена §b"+name+" §2успешно создана.");
+						return true;
+					}
+					
+					if (sub.equals("stop"))
+					{
+						if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+						Arena arena = main.arenas.get(name);
+						BukkitTask t = arena.getMainTimerID();
+						if (t != null) {t.cancel();}
+						
+						for(UUID id : arena.getAllPlayers()) 
+						{
+							if (id == null) {continue;}
+							Player pl = Bukkit.getPlayer(id);
+							if (pl == null) {continue;}
+							arena.kickPlayer(pl);
+						}
+						
+						SM(p,"§2Арена §b"+name+" §2остановлена.");
 						return true;
 					}
 					
@@ -73,8 +113,6 @@ public class Commands implements CommandExecutor
 						im.setLore(lore);
 						is.setItemMeta(im);
 						p.getInventory().addItem(is);
-						
-						p.getInventory().addItem(new ItemStack(Material.RED_GLAZED_TERRACOTTA));
 						SM(p,"§2Отметчик точек появления игроков §9§lЗАЩИТЫ §2для арены §b"+name+" §2получен.");
 						return true;
 					}
@@ -100,11 +138,7 @@ public class Commands implements CommandExecutor
 						Arena arena = main.arenas.get(name);
 						arena.isEnabled = true;
 						SM(p,"§2Арена §b"+name+" §2успешно §lвключена.");
-						
-						ItemStack is = new ItemStack(Material.WOOL);
-						ItemMeta im = is.getItemMeta();
-						im.setDisplayName(name);
-						is.setItemMeta(im);
+						ItemStack is = main.genarateArenaMenuItem(arena);
 						main.menuInventory.addItem(is);
 						return true;
 					}
@@ -122,20 +156,49 @@ public class Commands implements CommandExecutor
 							if (!is.hasItemMeta()) {continue;}
 							ItemMeta meta = is.getItemMeta();
 							if (!meta.hasDisplayName()) {continue;}
-							if (meta.getDisplayName().equals(name)) {main.menuInventory.remove(is); return true;}
+							if (meta.getDisplayName().equals(arena.getName())) {main.menuInventory.remove(is); return true;}
 						}
 						return true;
 					}
 					
 					if (count >= 3)
 					{
+						if (sub.equals("setname"))
+						{
+							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+							Arena arena = main.arenas.get(name);
+							String newName = "";
+							for(int i = 2; i < count; i++) {newName += args[i]+" ";}
+							newName = ChatColor.translateAlternateColorCodes('&', newName);
+							newName = newName.substring(0, newName.length()-1);
+							arena.setName(newName);
+							SM(p, "§2Название для арены §b"+name+" §2теперь: §e"+newName+"§2.");
+							return true;
+						}
+						
 						if (sub.equals("addoperator"))
 						{
 							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
 							Arena arena = main.arenas.get(name);
 							ItemStack[] iss = p.getInventory().getContents();
 							ArrayList<ItemStack> isList = new ArrayList<>();
-							for(ItemStack is : iss) {isList.add(is);}
+							for(ItemStack is : iss) {if (is == null) {continue;} if (is.getType().equals(Material.AIR)) {continue;} isList.add(is);}
+							arena.getOperatorsItems().put(args[2], isList);
+							p.sendMessage("§2Предметы для оперативника §b§l"+args[2]+"§2 установлены.");
+							return true;
+						}
+						
+						if (sub.equals("addopfromchest"))
+						{
+							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+							Arena arena = main.arenas.get(name);
+							Block b = p.getTargetBlock(null, 6);
+							if (b == null) {SM(p, "§cВы не смотрите на сундук."); return true;}
+							Chest chest = (Chest) b.getState();
+							if (chest == null) {SM(p, "§cВы не смотрите на сундук."); return true;}
+							ItemStack[] iss = chest.getInventory().getContents();
+							ArrayList<ItemStack> isList = new ArrayList<>();
+							for(ItemStack is : iss) {if (is == null) {continue;} if (is.getType().equals(Material.AIR)) {continue;} isList.add(is);}
 							arena.getOperatorsItems().put(args[2], isList);
 							p.sendMessage("§2Предметы для оперативника §b§l"+args[2]+"§2 установлены.");
 							return true;

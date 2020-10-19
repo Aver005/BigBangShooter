@@ -25,6 +25,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
@@ -39,12 +40,14 @@ public class Main extends JavaPlugin
 	public FileConfiguration config = null;
 	public String mainFolder = getDataFolder() + File.separator;
 	
+	private Scoreboard scoreboard;
 	private static Main main = null;
 	
 	@Override
 	public void onEnable() 
 	{
 		main = this;
+		setScoreboard(getServer().getScoreboardManager().getNewScoreboard());
 		
 		// Events
 		getServer().getPluginManager().registerEvents(new Events(this), this);
@@ -57,11 +60,11 @@ public class Main extends JavaPlugin
 	}
 	
 	@Override
-	public void onDisable() {saveCFG();}
+	public void onDisable() {saveCFG(true);}
 	
 	// Functions
 	
-	public void saveCFG()
+	public void saveCFG(boolean b)
 	{
 		File file = new File(mainFolder);
 		if (!file.exists()) {file.mkdir();}
@@ -77,14 +80,20 @@ public class Main extends JavaPlugin
 		{
 			Arena arena = arenas.get(arName);
 			if (arena == null) {continue;}
-			if (arena.isStarted)
+			
+			if (arena.isStarted && b)
 			{
 				for(UUID id : arena.getAllPlayers()) 
 				{
 					Player p = Bukkit.getPlayer(id);
 					if (p == null) {continue;}
-					loadPlayerData(p);
+					arena.kickPlayer(p);
 				}
+				
+				if (arena.getMainTimerID() != null) {arena.getMainTimerID().cancel();}
+				arena.setState("WAITING");
+				arena.isStarted = false;
+				arena.isStarting = false;
 			}
 			
 			file = new File(mainFolder + "Arenas" + File.separator + arName + ".arena");
@@ -146,7 +155,6 @@ public class Main extends JavaPlugin
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void loadCFG() 
 	{
 		menuInventory = Bukkit.createInventory(null, 27, "§9§lВыбор арены");
@@ -192,21 +200,7 @@ public class Main extends JavaPlugin
 				if (m == null) {m = Material.CHEST;}
 				ItemStack is = new ItemStack(m);
 				ItemMeta im = is.getItemMeta();
-				ArrayList<String> lore = new ArrayList<>();
 				im.setDisplayName("§6§l"+opName);
-				lore.add("");
-				lore.add("§eПредметы");
-				for(ItemStack item : isList)
-				{
-					if (item == null) {continue;}
-					if (item.getType().equals(Material.AIR)) {continue;}
-					if (!item.hasItemMeta()) {continue;}
-					ItemMeta meta = item.getItemMeta();
-					String itName = meta.getLocalizedName();
-					if (itName.isEmpty()) {itName = meta.getDisplayName();}
-					lore.add("   §f"+itName);
-				}
-				im.setLore(lore);
 				is.setItemMeta(im);
 				arena.getOperatorsInventory().addItem(is);
 			}
@@ -229,11 +223,7 @@ public class Main extends JavaPlugin
 			
 			if (arena.isEnabled)
 			{
-				ItemStack is = new ItemStack(Material.WOOL);
-				ItemMeta im = is.getItemMeta();
-				is.setDurability((short) 5);
-				im.setDisplayName("§b"+arena.getName());
-				is.setItemMeta(im);
+				ItemStack is = genarateArenaMenuItem(arena);
 				menuInventory.addItem(is);
 			}
 			
@@ -294,7 +284,6 @@ public class Main extends JavaPlugin
 		catch (IOException e) {e.printStackTrace();}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public void loadPlayerData(Player p)
 	{
 		File temp = new File(getDataFolder() + File.separator + "Players");
@@ -367,9 +356,34 @@ public class Main extends JavaPlugin
 		for(String arName : arenas.keySet())
 		{
 			Arena a = arenas.get(arName);
-			if (a.getName().equals(name)) {return a;}
+			if (removeCC(a.getName()).equals(name)) {return a;}
 		}
 		
 		return null;
+	}
+
+	public ItemStack genarateArenaMenuItem(Arena arena)
+	{
+		ItemStack is = new ItemStack(Material.WOOL, 1, (short) 5);
+		ItemMeta im = is.getItemMeta();
+		ArrayList<String> lore = new ArrayList<>();
+		int plCount = arena.getAllPlayers().size();
+		im.setDisplayName(arena.getName());
+		lore.add("");
+		lore.add("§eИгроков: §f"+plCount+"/"+arena.getMaxPlayers());
+		lore.add("§6Нажмите, чтобы зайти");
+		im.setLore(lore);
+		is.setItemMeta(im);
+		return is;
+	}
+
+	public Scoreboard getScoreboard()
+	{
+		return scoreboard;
+	}
+
+	public void setScoreboard(Scoreboard scoreboard)
+	{
+		this.scoreboard = scoreboard;
 	}
 }

@@ -6,9 +6,14 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Arrow;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,14 +22,22 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryType.SlotType;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPickupArrowEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.LeatherArmorMeta;
 
 public class Events implements Listener 
 {
@@ -62,6 +75,14 @@ public class Events implements Listener
 	}
 	
 	@EventHandler
+	public void onBlockBreak(BlockBreakEvent e)
+	{
+		Player p = e.getPlayer();
+		Arena arena = main.getPlayerArena(p);
+		if (arena != null) {e.setCancelled(true);}
+	}
+
+	@EventHandler
 	public void onPlayerMove(PlayerMoveEvent e)
 	{
 		Player p = e.getPlayer();
@@ -75,14 +96,55 @@ public class Events implements Listener
 	}
 	
 	@EventHandler
+	public void onPlayerLeave(PlayerQuitEvent e)
+	{
+		Player p = e.getPlayer();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		arena.deathPlayer(p);
+	}
+	
+	@EventHandler
+	public void onPlayerJoin(PlayerJoinEvent e)
+	{
+		Player p = e.getPlayer();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		if (!arena.isStarted) {main.loadPlayerData(p); return;}
+		UUID id = p.getUniqueId();
+		String state = arena.getState();
+		if (!arena.getDeathPlayers().contains(id)) {main.loadPlayerData(p); return;}
+		if (state.equals("FREEZE TIME")) 
+		{
+			p.setGameMode(GameMode.ADVENTURE);
+			p.setHealth(20.0);
+			p.setFoodLevel(20);
+			p.getInventory().clear();
+			arena.teleportToSpawns(p);
+		}
+	}
+	
+	@EventHandler
 	public void onPlayerDmgPlayer(EntityDamageByEntityEvent e)
 	{
 		if (!e.getEntityType().equals(EntityType.PLAYER)) {return;}
 		Player p = (Player) e.getEntity();
 		Arena arena = main.getPlayerArena(p);
 		if (arena == null) {return;}
+		
 		String state = arena.getState();
 		if (!state.equals("PLAYING")) {return;}
+		
+		if (e.getDamager().getType().equals(EntityType.ARROW) || e.getDamager().getType().equals(EntityType.SPECTRAL_ARROW))
+		{
+			Arrow arrow = (Arrow) e.getDamager();
+			if (arrow.getShooter() instanceof Player)
+			{
+				Player killer = (Player) arrow.getShooter();
+				if (!state.equals("PLAYING")) {e.setCancelled(true); return;}
+				if (arena.getPlayerTeam(p) == arena.getPlayerTeam(killer)) {e.setCancelled(true); return;}
+			}
+		}
 		
 		if (e.getDamager().getType().equals(EntityType.PLAYER))
 		{
@@ -90,6 +152,10 @@ public class Events implements Listener
 			double damage = e.getDamage();
 			double heath = p.getHealth();
 			
+			int fTeam = arena.getPlayerTeam(p);
+			int sTeam = arena.getPlayerTeam(killer);
+			
+			if (fTeam == sTeam) {e.setCancelled(true); return;}
 			if (damage >= heath) 
 			{
 				e.setDamage(heath-1.0);
@@ -98,6 +164,17 @@ public class Events implements Listener
 			}
 		}
 		
+	}
+	
+	@EventHandler
+	public void onPlayerUseBow(EntityShootBowEvent e)
+	{
+		if (!e.getEntityType().equals(EntityType.PLAYER)) {return;}
+		Player p = (Player) e.getEntity();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		Entity proj = e.getProjectile();
+		arena.getEntities().add(proj);
 	}
 	
 	@EventHandler
@@ -110,16 +187,84 @@ public class Events implements Listener
 	}
 	
 	@EventHandler
+	public void onPlayerTakeDrop(PlayerPickupItemEvent e)
+	{
+		Player p = e.getPlayer();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		e.setCancelled(true);
+	}
+	
+	@EventHandler
+	public void onPlayerTakeDrop(PlayerPickupArrowEvent e)
+	{
+		Player p = e.getPlayer();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		e.setCancelled(true);
+	}
+	
+	@EventHandler
+	public void onPlayerCloseInv(InventoryCloseEvent e)
+	{
+		if (!e.getPlayer().getType().equals(EntityType.PLAYER)) {return;}
+		Player p = (Player) e.getPlayer();
+		String title = e.getView().getTitle();
+		Arena arena = main.getPlayerArena(p);
+		if (arena == null) {return;}
+		
+		if (title.equals("§9§lЗакладка бомбы")) {arena.getPlantInventory().clear(); arena.isPlanting = false;}
+		if (title.equals("§9§lОбезвреживание бомбы")) {arena.getDefuseInventory().clear();arena.isDefusing = false;}
+	}
+	
+	@EventHandler
 	public void onPlayerClickInv(InventoryClickEvent e)
 	{
 		if (!e.getWhoClicked().getType().equals(EntityType.PLAYER)) {return;}
 		Player p = (Player) e.getWhoClicked();
 		String title = e.getView().getTitle();
+		Arena arena = main.getPlayerArena(p);
+		
+		if (title.equals("§9§lВыбор команды"))
+		{
+			e.setCancelled(true);
+			if (arena == null) {p.closeInventory(); return;}
+			if (!arena.getState().equals("WAITING")) {p.closeInventory(); return;}
+			ItemStack item = e.getCurrentItem();
+			if (item == null) {return;}
+			if (!item.hasItemMeta()) {return;}
+			ItemMeta meta = item.getItemMeta();
+			if (!meta.hasDisplayName()) {return;}
+			String itName = main.removeCC(meta.getDisplayName());
+			UUID id = p.getUniqueId();
+			if (itName.equals("Команда ЗАЩИТЫ"))
+			{
+				if (arena.getTeamDefend().contains(id)) {p.sendMessage("§eВы уже в этой команде."); return;}
+				if (arena.getTeamAttack().contains(id)) {arena.getTeamAttack().remove(id);}
+				arena.getTeamDefend().add(id);
+				p.closeInventory();
+				p.sendTitle("§2Вы сменили команду", "§eТеперь вы §9§lЗАЩИТА");
+				p.sendMessage("§2Теперь вы играете за команду §9§lЗАШИТЫ§2.");
+				return;
+			}
+			
+			if (itName.equals("Команда АТАКИ"))
+			{
+				if (arena.getTeamAttack().contains(id)) {p.sendMessage("§eВы уже в этой команде."); return;}
+				if (arena.getTeamDefend().contains(id)) {arena.getTeamDefend().remove(id);}
+				arena.getTeamAttack().add(id);
+				p.closeInventory();
+				p.sendTitle("§2Вы сменили команду", "§eТеперь вы §6§lАТАКА");
+				p.sendMessage("§2Теперь вы играете за команду §6§lАТАКИ§2.");
+				return;
+			}
+			return;
+		}
 		
 		if (title.equals("§9§lВыбор оперативника"))
 		{
 			e.setCancelled(true);
-			Arena arena = main.getPlayerArena(p);
+			
 			if (arena == null) {p.closeInventory(); return;}
 			ItemStack item = e.getCurrentItem();
 			if (item == null) {return;}
@@ -131,18 +276,33 @@ public class Events implements Listener
 			ArrayList<ItemStack> isList = arena.getOperatorsItems().get(itName);
 			if (isList.size() == 0) {p.sendMessage("§cПредметы не найдены."); return;}
 			p.getInventory().clear();
+			int i = 0;
 			for(ItemStack is : isList)
 			{
 				if (is == null) {continue;}
+				is = is.clone();
 				String matName = is.getType().name().toUpperCase();
+				
+				if (matName.contains("LEATHER"))
+				{
+					LeatherArmorMeta tam = (LeatherArmorMeta) is.getItemMeta();
+					if (arena.getPlayerTeam(p) == 0) {tam.setColor(Color.AQUA);}
+					if (arena.getPlayerTeam(p) == 1) {tam.setColor(Color.ORANGE);}
+					is.setItemMeta(tam);
+				}
+				
 				if (matName.contains("HELMET")) {p.getInventory().setHelmet(is); continue;}
 				if (matName.contains("CHESTPLATE")) {p.getInventory().setChestplate(is); continue;}
 				if (matName.contains("LEGGINGS")) {p.getInventory().setLeggings(is); continue;}
 				if (matName.contains("BOOTS")) {p.getInventory().setBoots(is); continue;}
-				p.getInventory().addItem(is);
+				
+				if (i == 6) {i = 9;}
+				p.getInventory().setItem(i, is);
+				i++;
 			}
 			
-			p.getInventory().setItem(8, arena.getOperatorItem());
+			arena.getPlayerOperator().put(p.getName(), itName);
+			arena.giveClassItem(p);
 			p.closeInventory();
 			p.sendMessage("§2Предметы оперативника §b§l"+itName+" §2выданы.");
 			return;
@@ -157,17 +317,30 @@ public class Events implements Listener
 			ItemMeta meta = item.getItemMeta();
 			if (!meta.hasDisplayName()) {return;}
 			String itName = meta.getDisplayName();
-			Arena arena = main.getArenaByName(itName);
+			arena = main.getArenaByName(itName);
 			if (arena == null) {p.closeInventory(); return;}
 			arena.addPlayer(p);
 			main.players.put(p.getUniqueId(), arena);
+			
+			if (!meta.hasLore()) {return;}
+			List<String> lore = meta.getLore();
+			if (lore.size() != 3) {return;}
+			int plCount = arena.getAllPlayers().size();
+			int maxPl = arena.getMaxPlayers();
+			lore.set(1,"§eИгроков: §f"+plCount+"/"+maxPl);
+			meta.setLore(lore);
+			item.setItemMeta(meta);
+			main.menuInventory.setItem(e.getSlot(), item);
+			
+			if (maxPl == plCount) {main.menuInventory.remove(item);}
+			if (arena.isStarted) {main.menuInventory.remove(item);}
 		}
 		
 		if (title.equals("§9§lЗакладка бомбы"))
 		{
 			e.setCancelled(true);
-			Arena arena = main.getPlayerArena(p);
 			if (arena == null) {p.closeInventory(); return;}
+			if (!arena.getState().equals("PLAYING")) {p.closeInventory(); return;}
 			ItemStack item = e.getCurrentItem();
 			if (item == null) {p.closeInventory(); arena.isPlanting = false; return;}
 			if (!item.hasItemMeta()) {p.closeInventory(); arena.isPlanting = false;  return;}
@@ -182,6 +355,8 @@ public class Events implements Listener
 			_strings.add("§e2 - §2Вставляем провод...");
 			_strings.add("§e1 - §2Достаём бомбу...");
 			
+			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_METAL_HIT, 0.8f, 1);
+			
 			int itemsCount = 0;
 			for(ItemStack is : e.getView().getTopInventory())
 			{
@@ -193,6 +368,7 @@ public class Events implements Listener
 			if (!itName.endsWith(_strings.get(itemsCount-1))) 
 			{
 				arena.isPlanting = false;
+				arena.getPlantInventory().clear();
 				p.sendTitle("§сБОМБА НЕ ЗАЛОЖЕНА!", "§eПоследовательность не верна...");
 				p.closeInventory(); 
 				return;
@@ -203,12 +379,15 @@ public class Events implements Listener
 			ArrayList<UUID> list = arena.getAllPlayers();
 			for(UUID plID : list)
 			{
+				if (plID == null) {continue;}
 				Player pl = Bukkit.getPlayer(plID);
 				if (pl == null) {list.remove(plID); continue;}
 				if (!pl.isOnline()) {list.remove(plID); continue;}
 				pl.sendTitle("§e§lБОМБА ЗАЛОЖЕНА", "§eДо взрыва 45 секунд");
 			}
 			
+			arena.getPlantInventory().clear();
+			arena.getEditedBlocks().put(arena.getPlantedBomb(), Material.AIR);
 			arena.getPlantedBomb().getBlock().setType(arena.getBombMaterial());
 			arena.setTime(45);
 			arena.isPlanted = true;
@@ -220,8 +399,8 @@ public class Events implements Listener
 		if (title.equals("§9§lОбезвреживание бомбы"))
 		{
 			e.setCancelled(true);
-			Arena arena = main.getPlayerArena(p);
 			if (arena == null) {p.closeInventory(); return;}
+			if (!arena.getState().equals("PLAYING")) {p.closeInventory(); return;}
 			ItemStack item = e.getCurrentItem();
 			if (item == null) {p.closeInventory(); arena.isDefusing = false; return;}
 			if (!item.hasItemMeta()) {p.closeInventory(); arena.isDefusing = false;  return;}
@@ -239,6 +418,8 @@ public class Events implements Listener
 			_strings.add("§e2 - §2Вскрываем...");
 			_strings.add("§e1 - §2Берём бомбу...");
 			
+			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_METAL_HIT, 0.8f, 1);
+			
 			int itemsCount = 0;
 			for(ItemStack is : e.getView().getTopInventory())
 			{
@@ -250,12 +431,13 @@ public class Events implements Listener
 			if (!itName.endsWith(_strings.get(itemsCount-1))) 
 			{
 				arena.isPlanting = false;
+				arena.getDefuseInventory().clear();
 				p.sendTitle("§cБОМБА НЕ ОБЕЗВРЕЖЕНА!", "§eПоследовательность не верна...");
 				p.closeInventory(); 
 				return;
 			}
 			
-			arena.getPlantInventory().remove(item);
+			arena.getDefuseInventory().remove(item);
 			if (itemsCount > 1) {return;}
 			ArrayList<UUID> list = arena.getAllPlayers();
 			for(UUID plID : list)
@@ -269,6 +451,7 @@ public class Events implements Listener
 				else {pl.sendTitle("§a§lПобеда!", "§aБомба была обезврежена.");}
 			}
 			
+			arena.getDefuseInventory().clear();
 			arena.setTime(8);
 			arena.isPlanted = false;
 			arena.isPlanting = false;
@@ -283,7 +466,6 @@ public class Events implements Listener
 		if (title.equals("§9§lВыбор команды"))
 		{
 			e.setCancelled(true);
-			Arena arena = main.getPlayerArena(p);
 			if (arena == null) {p.closeInventory(); return;}
 			ItemStack item = e.getCurrentItem();
 			if (item == null) {return;}
@@ -323,6 +505,9 @@ public class Events implements Listener
 			p.closeInventory();
 			return;
 		}
+		
+		if (arena == null) {return;}
+		if (e.getSlotType().equals(SlotType.ARMOR)) {e.setCancelled(true);}
 	}
 	
 	@EventHandler
@@ -332,6 +517,13 @@ public class Events implements Listener
 		Arena arena = main.getPlayerArena(p);
 		if (arena == null) {return;}
 		
+		if (arena.getState().equals("WAITING") || arena.getState().equals("FREEZE TIME")) {e.setCancelled(true);}
+		
+		Block b = e.getClickedBlock();
+		if (!arena.getTeamDefend().contains(p.getUniqueId()))
+		{if (b != null && arena.getPlantedBomb() != null) 
+		{if (arena.getPlantedBomb().equals(b.getLocation())) {e.setCancelled(true); return;}}}
+		
 		ItemStack item = p.getItemInHand();
 		if (item == null) {return;}
 		Material m = item.getType();
@@ -339,18 +531,6 @@ public class Events implements Listener
 		ItemMeta meta = item.getItemMeta();
 		if (!meta.hasDisplayName()) {return;}
 		String itName = meta.getDisplayName();
-		Block b = e.getClickedBlock();
-		
-		if (itName.equals("§b§lВыбор оперативника"))
-		{
-			e.setCancelled(true);
-			String s = arena.getState();
-			if (!s.equals("FREEZE TIME") && !s.equals("WAITING")) {return;}
-			Inventory inv = arena.getOperatorsInventory();
-			if (inv == null) {return;}
-			p.openInventory(inv);
-			return;
-		}
 		
 		// Обезвреживание
 		if (item.equals(arena.getDefuseKitsItem()))
@@ -366,6 +546,9 @@ public class Events implements Listener
 				p.getInventory().remove(item);
 				return;
 			}
+			
+			if (!arena.getState().equals("PLAYING")) {p.closeInventory(); return;}
+			b.getWorld().playSound(b.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.8f, 1);
 			
 			ArrayList<Short> _types = new ArrayList<>();
 			_types.add((short) 12);
@@ -387,13 +570,14 @@ public class Events implements Listener
 			_strings.add("§e7 - §2Режем провод...");
 			_strings.add("§e8 - §2Кидаем бомбу в помойку...");
 			
-			Inventory inv = arena.getPlantInventory();
+			Inventory inv = arena.getDefuseInventory();
 			for(int i = 0; i < _strings.size(); i++)
 			{
 				ItemStack is = new ItemStack(Material.WOOL);
 				ItemMeta im = is.getItemMeta();
 				is.setDurability(_types.get(i));
 				im.setDisplayName(_strings.get(i));
+				is.setItemMeta(im);
 				
 				Random rnd = new Random();
 				int slot = rnd.nextInt(27);
@@ -403,6 +587,40 @@ public class Events implements Listener
 			
 			p.openInventory(inv);
 			arena.isDefusing = true;
+			return;
+		}
+		
+		// Выбор оперативника
+		if (item.equals(arena.getOperatorItem()))
+		{
+			e.setCancelled(true);
+			String s = arena.getState();
+			if (!s.equals("FREEZE TIME") && !s.equals("WAITING")) {return;}
+			Inventory inv = arena.getOperatorsInventory();
+			if (inv == null) {return;}
+			p.openInventory(inv);
+			return;
+		}
+		
+		// Выбор команды
+		if (item.equals(arena.getTeamItem()))
+		{
+			e.setCancelled(true);
+			String s = arena.getState();
+			if (!s.equals("WAITING")) {p.getInventory().remove(item); return;}
+			Inventory inv = Bukkit.createInventory(null, 9, "§9§lВыбор команды");
+			for(int i = 0; i < 9; i++) {inv.setItem(i, new ItemStack(Material.WEB));}
+			ItemStack is = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 3);
+			ItemMeta im = is.getItemMeta();
+			im.setDisplayName("§e§lКоманда §9§lЗАЩИТЫ");
+			is.setItemMeta(im);
+			inv.setItem(2, is);
+			is = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 1);
+			im = is.getItemMeta();
+			im.setDisplayName("§e§lКоманда §6§lАТАКИ");
+			is.setItemMeta(im);
+			inv.setItem(6, is);
+			p.openInventory(inv);
 			return;
 		}
 		
@@ -426,6 +644,9 @@ public class Events implements Listener
 				return;
 			}
 			
+			if (!arena.getState().equals("PLAYING")) {p.closeInventory(); return;}
+			b.getWorld().playSound(b.getLocation(), Sound.BLOCK_CHEST_OPEN, 0.8f, 1);
+			
 			ArrayList<Short> _types = new ArrayList<>();
 			_types.add((short) 12);
 			_types.add((short) 2);
@@ -447,6 +668,7 @@ public class Events implements Listener
 				ItemMeta im = is.getItemMeta();
 				is.setDurability(_types.get(i));
 				im.setDisplayName(_strings.get(i));
+				is.setItemMeta(im);
 				
 				Random rnd = new Random();
 				int slot = rnd.nextInt(27);
@@ -501,14 +723,6 @@ public class Events implements Listener
 	}
 	
 	@EventHandler
-	public void onBlockBreak(BlockBreakEvent e)
-	{
-		Player p = e.getPlayer();
-		Arena arena = main.getPlayerArena(p);
-		if (arena != null) {e.setCancelled(true);}
-	}
-	
-	@EventHandler
 	public void onPlayerDamaged(EntityDamageEvent e)
 	{
 		if (!e.getEntityType().equals(EntityType.PLAYER)) {return;}
@@ -521,5 +735,12 @@ public class Events implements Listener
 		if (state.equals("STOP")) {e.setCancelled(true);}
 		if (state.equals("ROUND END")) {e.setCancelled(true);}
 		
+		if (state.equals("PLAYING"))
+		{
+			double dmg = e.getDamage();
+			if (p.getHealth() > dmg) {return;}
+			e.setDamage(p.getHealth()-1.0);
+			arena.deathPlayer(p);
+		}
 	}
 }
