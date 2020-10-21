@@ -6,7 +6,6 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -37,7 +36,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.LeatherArmorMeta;
 
 public class Events implements Listener 
 {
@@ -69,9 +67,9 @@ public class Events implements Listener
 		Location l = b.getLocation();
 		e.setCancelled(true);
 		
-		if (name.endsWith("ЗАЩИТЫ")) {arena.getDefendSpawns().add(l);}
-		if (name.endsWith("АТАКИ")) {arena.getAttackSpawns().add(l);}
-		SM(p,"§2Спавн §eX: "+l.getBlockX()+" Y: "+l.getBlockY()+" Z: "+l.getBlockZ()+" §2команды "+name.split(" ")[2]+" §2добавлен на арену §b"+arName+"§2.");
+		if (name.endsWith("Р—РђР©РРўР«")) {arena.getDefendSpawns().add(l);}
+		if (name.endsWith("РђРўРђРљР")) {arena.getAttackSpawns().add(l);}
+		SM(p,"В§2РЎРїР°РІРЅ В§eX: "+l.getBlockX()+" Y: "+l.getBlockY()+" Z: "+l.getBlockZ()+" В§2РєРѕРјР°РЅРґС‹ "+name.split(" ")[2]+" В§2РґРѕР±Р°РІР»РµРЅ РЅР° Р°СЂРµРЅСѓ В§b"+arName+"В§2.");
 	}
 	
 	@EventHandler
@@ -101,7 +99,7 @@ public class Events implements Listener
 		Player p = e.getPlayer();
 		Arena arena = main.getPlayerArena(p);
 		if (arena == null) {return;}
-		arena.deathPlayer(p);
+		arena.kickPlayer(p);
 	}
 	
 	@EventHandler
@@ -113,7 +111,7 @@ public class Events implements Listener
 		if (!arena.isStarted) {main.loadPlayerData(p); return;}
 		UUID id = p.getUniqueId();
 		String state = arena.getState();
-		if (!arena.getDeathPlayers().contains(id)) {main.loadPlayerData(p); return;}
+		if (!arena.getaddDeathPlayers().contains(id)) {main.loadPlayerData(p); return;}
 		if (state.equals("FREEZE TIME")) 
 		{
 			p.setGameMode(GameMode.ADVENTURE);
@@ -213,8 +211,8 @@ public class Events implements Listener
 		Arena arena = main.getPlayerArena(p);
 		if (arena == null) {return;}
 		
-		if (title.equals("§9§lЗакладка бомбы")) {arena.getPlantInventory().clear(); arena.isPlanting = false;}
-		if (title.equals("§9§lОбезвреживание бомбы")) {arena.getDefuseInventory().clear();arena.isDefusing = false;}
+		if (title.equals("В§9В§lР—Р°РєР»Р°РґРєР° Р±РѕРјР±С‹")) {arena.getPlantInventory().clear(); arena.isPlanting = false;}
+		if (title.equals("В§9В§lРћР±РµР·РІСЂРµР¶РёРІР°РЅРёРµ Р±РѕРјР±С‹")) {arena.getDefuseInventory().clear();arena.isDefusing = false;}
 	}
 	
 	@EventHandler
@@ -225,7 +223,7 @@ public class Events implements Listener
 		String title = e.getView().getTitle();
 		Arena arena = main.getPlayerArena(p);
 		
-		if (title.equals("§9§lВыбор команды"))
+		if (title.equals("В§9В§lР’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹"))
 		{
 			e.setCancelled(true);
 			if (arena == null) {p.closeInventory(); return;}
@@ -237,31 +235,31 @@ public class Events implements Listener
 			if (!meta.hasDisplayName()) {return;}
 			String itName = main.removeCC(meta.getDisplayName());
 			UUID id = p.getUniqueId();
-			if (itName.equals("Команда ЗАЩИТЫ"))
+			if (itName.equals("РљРѕРјР°РЅРґР° Р—РђР©РРўР«"))
 			{
-				if (arena.getTeamDefend().contains(id)) {p.sendMessage("§eВы уже в этой команде."); return;}
+				if (arena.getTeamDefend().contains(id)) {p.sendMessage("В§eР’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ."); return;}
 				if (arena.getTeamAttack().contains(id)) {arena.getTeamAttack().remove(id);}
 				arena.getTeamDefend().add(id);
 				p.closeInventory();
-				p.sendTitle("§2Вы сменили команду", "§eТеперь вы §9§lЗАЩИТА");
-				p.sendMessage("§2Теперь вы играете за команду §9§lЗАШИТЫ§2.");
+				p.sendTitle("В§2Р’С‹ СЃРјРµРЅРёР»Рё РєРѕРјР°РЅРґСѓ", "В§eРўРµРїРµСЂСЊ РІС‹ В§9В§lР—РђР©РРўРђ");
+				p.sendMessage("В§2РўРµРїРµСЂСЊ РІС‹ РёРіСЂР°РµС‚Рµ Р·Р° РєРѕРјР°РЅРґСѓ В§9В§lР—РђРЁРРўР«В§2.");
 				return;
 			}
 			
-			if (itName.equals("Команда АТАКИ"))
+			if (itName.equals("РљРѕРјР°РЅРґР° РђРўРђРљР"))
 			{
-				if (arena.getTeamAttack().contains(id)) {p.sendMessage("§eВы уже в этой команде."); return;}
+				if (arena.getTeamAttack().contains(id)) {p.sendMessage("В§eР’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ."); return;}
 				if (arena.getTeamDefend().contains(id)) {arena.getTeamDefend().remove(id);}
 				arena.getTeamAttack().add(id);
 				p.closeInventory();
-				p.sendTitle("§2Вы сменили команду", "§eТеперь вы §6§lАТАКА");
-				p.sendMessage("§2Теперь вы играете за команду §6§lАТАКИ§2.");
+				p.sendTitle("В§2Р’С‹ СЃРјРµРЅРёР»Рё РєРѕРјР°РЅРґСѓ", "В§eРўРµРїРµСЂСЊ РІС‹ В§6В§lРђРўРђРљРђ");
+				p.sendMessage("В§2РўРµРїРµСЂСЊ РІС‹ РёРіСЂР°РµС‚Рµ Р·Р° РєРѕРјР°РЅРґСѓ В§6В§lРђРўРђРљРВ§2.");
 				return;
 			}
 			return;
 		}
 		
-		if (title.equals("§9§lВыбор оперативника"))
+		if (title.equals("В§9В§lР’С‹Р±РѕСЂ РѕРїРµСЂР°С‚РёРІРЅРёРєР°"))
 		{
 			e.setCancelled(true);
 			
@@ -271,44 +269,59 @@ public class Events implements Listener
 			if (!item.hasItemMeta()) {return;}
 			ItemMeta meta = item.getItemMeta();
 			if (!meta.hasDisplayName()) {return;}
+			ArrayList<String> lore = new ArrayList<>();
+			int team = arena.getPlayerTeam(p);
 			String itName = main.removeCC(meta.getDisplayName());
-			if (!arena.getOperatorsItems().containsKey(itName)) {p.sendMessage("§cПредметы не найдены."); return;}
-			ArrayList<ItemStack> isList = arena.getOperatorsItems().get(itName);
-			if (isList.size() == 0) {p.sendMessage("§cПредметы не найдены."); return;}
-			p.getInventory().clear();
-			int i = 0;
-			for(ItemStack is : isList)
+			String takedPlayer = arena.getPlayerOperator().getOrDefault(itName+"/"+team, "");
+			String takedOp = arena.getPlayerOperator().getOrDefault(p.getName()+"/"+team, "");
+			
+			if (!takedPlayer.isEmpty() && !takedPlayer.equals(p.getName()))
 			{
-				if (is == null) {continue;}
-				is = is.clone();
-				String matName = is.getType().name().toUpperCase();
-				
-				if (matName.contains("LEATHER"))
-				{
-					LeatherArmorMeta tam = (LeatherArmorMeta) is.getItemMeta();
-					if (arena.getPlayerTeam(p) == 0) {tam.setColor(Color.AQUA);}
-					if (arena.getPlayerTeam(p) == 1) {tam.setColor(Color.ORANGE);}
-					is.setItemMeta(tam);
-				}
-				
-				if (matName.contains("HELMET")) {p.getInventory().setHelmet(is); continue;}
-				if (matName.contains("CHESTPLATE")) {p.getInventory().setChestplate(is); continue;}
-				if (matName.contains("LEGGINGS")) {p.getInventory().setLeggings(is); continue;}
-				if (matName.contains("BOOTS")) {p.getInventory().setBoots(is); continue;}
-				
-				if (i == 6) {i = 9;}
-				p.getInventory().setItem(i, is);
-				i++;
+				p.sendMessage("В§cР”Р°РЅРЅС‹Р№ РѕРїРµСЂР°С‚РёРІРЅРёРє СѓР¶Рµ РІС‹Р±СЂР°РЅ.");
+				return;
 			}
 			
-			arena.getPlayerOperator().put(p.getName(), itName);
-			arena.giveClassItem(p);
+			if (!takedOp.isEmpty() && !takedOp.equals(itName))
+			{
+				for(ItemStack is : arena.getOperatorsInventory().getContents())
+				{
+					if (is == null) {continue;}
+					if (!is.hasItemMeta()) {continue;}
+					ItemMeta im = is.getItemMeta();
+					if (!im.hasDisplayName()) {continue;}
+					String dName = main.removeCC(im.getDisplayName());
+					if (!dName.equals(takedOp)) {continue;}
+					if (!im.hasLore()) {continue;}
+					im.setLore(new ArrayList<>());
+					is.setItemMeta(im);
+				}
+			}
+			
+			arena.giveOperatorItems(p, itName);
+			
+			for(UUID id : arena.getAllPlayers())
+			{
+				if (id == null) {continue;}
+				Player pl = Bukkit.getPlayer(id);
+				if (pl == null) {continue;}
+				if (!pl.isOnline()) {continue;}
+				if (pl.equals(p)) {continue;}
+				
+				pl.sendMessage("В§9В§lК В§b"+p.getName()+" В§eРІР·СЏР» В§6"+itName);
+			}
+			
+			lore.add("");
+			lore.add("В§cР’Р·СЏС‚:");
+			lore.add("В§b"+p.getName());
+			meta.setLore(lore);
+			item.setItemMeta(meta);
+			
 			p.closeInventory();
-			p.sendMessage("§2Предметы оперативника §b§l"+itName+" §2выданы.");
+			p.sendMessage("В§2РџСЂРµРґРјРµС‚С‹ РѕРїРµСЂР°С‚РёРІРЅРёРєР° В§bВ§l"+itName+" В§2РІС‹РґР°РЅС‹.");
 			return;
 		}
 		
-		if (title.equals("§9§lВыбор арены"))
+		if (title.equals("В§9В§lР’С‹Р±РѕСЂ Р°СЂРµРЅС‹"))
 		{
 			e.setCancelled(true);
 			ItemStack item = e.getCurrentItem();
@@ -321,22 +334,11 @@ public class Events implements Listener
 			if (arena == null) {p.closeInventory(); return;}
 			arena.addPlayer(p);
 			main.players.put(p.getUniqueId(), arena);
-			
-			if (!meta.hasLore()) {return;}
-			List<String> lore = meta.getLore();
-			if (lore.size() != 3) {return;}
-			int plCount = arena.getAllPlayers().size();
-			int maxPl = arena.getMaxPlayers();
-			lore.set(1,"§eИгроков: §f"+plCount+"/"+maxPl);
-			meta.setLore(lore);
-			item.setItemMeta(meta);
-			main.menuInventory.setItem(e.getSlot(), item);
-			
-			if (maxPl == plCount) {main.menuInventory.remove(item);}
-			if (arena.isStarted) {main.menuInventory.remove(item);}
+			main.refreshArenaInMenu(arena);
+			return;
 		}
 		
-		if (title.equals("§9§lЗакладка бомбы"))
+		if (title.equals("В§9В§lР—Р°РєР»Р°РґРєР° Р±РѕРјР±С‹"))
 		{
 			e.setCancelled(true);
 			if (arena == null) {p.closeInventory(); return;}
@@ -349,13 +351,13 @@ public class Events implements Listener
 			String itName = meta.getDisplayName();
 			
 			ArrayList<String> _strings = new ArrayList<>();
-			_strings.add("§e5 - §2Кладём бомбу на плент...");
-			_strings.add("§e4 - §2Включаем таймер...");
-			_strings.add("§e3 - §2Вводим код...");
-			_strings.add("§e2 - §2Вставляем провод...");
-			_strings.add("§e1 - §2Достаём бомбу...");
+			_strings.add("В§e5 - В§2РљР»Р°РґС‘Рј Р±РѕРјР±Сѓ РЅР° РїР»РµРЅС‚...");
+			_strings.add("В§e4 - В§2Р’РєР»СЋС‡Р°РµРј С‚Р°Р№РјРµСЂ...");
+			_strings.add("В§e3 - В§2Р’РІРѕРґРёРј РєРѕРґ...");
+			_strings.add("В§e2 - В§2Р’СЃС‚Р°РІР»СЏРµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e1 - В§2Р”РѕСЃС‚Р°С‘Рј Р±РѕРјР±Сѓ...");
 			
-			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_METAL_HIT, 0.8f, 1);
+			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_STONE_BREAK, 0.8f, 1);
 			
 			int itemsCount = 0;
 			for(ItemStack is : e.getView().getTopInventory())
@@ -369,7 +371,7 @@ public class Events implements Listener
 			{
 				arena.isPlanting = false;
 				arena.getPlantInventory().clear();
-				p.sendTitle("§сБОМБА НЕ ЗАЛОЖЕНА!", "§eПоследовательность не верна...");
+				p.sendTitle("В§СЃР‘РћРњР‘Рђ РќР• Р—РђР›РћР–Р•РќРђ!", "В§eРџРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚СЊ РЅРµ РІРµСЂРЅР°...");
 				p.closeInventory(); 
 				return;
 			}
@@ -383,7 +385,7 @@ public class Events implements Listener
 				Player pl = Bukkit.getPlayer(plID);
 				if (pl == null) {list.remove(plID); continue;}
 				if (!pl.isOnline()) {list.remove(plID); continue;}
-				pl.sendTitle("§e§lБОМБА ЗАЛОЖЕНА", "§eДо взрыва 45 секунд");
+				pl.sendTitle("В§eВ§lР‘РћРњР‘Рђ Р—РђР›РћР–Р•РќРђ", "В§eР”Рѕ РІР·СЂС‹РІР° 45 СЃРµРєСѓРЅРґ");
 			}
 			
 			arena.getPlantInventory().clear();
@@ -396,7 +398,7 @@ public class Events implements Listener
 			return;
 		}
 		
-		if (title.equals("§9§lОбезвреживание бомбы"))
+		if (title.equals("В§9В§lРћР±РµР·РІСЂРµР¶РёРІР°РЅРёРµ Р±РѕРјР±С‹"))
 		{
 			e.setCancelled(true);
 			if (arena == null) {p.closeInventory(); return;}
@@ -409,16 +411,16 @@ public class Events implements Listener
 			String itName = meta.getDisplayName();
 			
 			ArrayList<String> _strings = new ArrayList<>();
-			_strings.add("§e8 - §2Кидаем бомбу в помойку...");
-			_strings.add("§e7 - §2Режем провод...");
-			_strings.add("§e6 - §2Достаём щипцы...");
-			_strings.add("§e5 - §2Молимся...");
-			_strings.add("§e4 - §2Выбираем провод...");
-			_strings.add("§e3 - §2Думаем...");
-			_strings.add("§e2 - §2Вскрываем...");
-			_strings.add("§e1 - §2Берём бомбу...");
+			_strings.add("В§e8 - В§2РљРёРґР°РµРј Р±РѕРјР±Сѓ РІ РїРѕРјРѕР№РєСѓ...");
+			_strings.add("В§e7 - В§2Р РµР¶РµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e6 - В§2Р”РѕСЃС‚Р°С‘Рј С‰РёРїС†С‹...");
+			_strings.add("В§e5 - В§2РњРѕР»РёРјСЃСЏ...");
+			_strings.add("В§e4 - В§2Р’С‹Р±РёСЂР°РµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e3 - В§2Р”СѓРјР°РµРј...");
+			_strings.add("В§e2 - В§2Р’СЃРєСЂС‹РІР°РµРј...");
+			_strings.add("В§e1 - В§2Р‘РµСЂС‘Рј Р±РѕРјР±Сѓ...");
 			
-			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_METAL_HIT, 0.8f, 1);
+			p.getWorld().playSound(p.getLocation(), Sound.BLOCK_STONE_BREAK, 0.8f, 1);
 			
 			int itemsCount = 0;
 			for(ItemStack is : e.getView().getTopInventory())
@@ -432,7 +434,7 @@ public class Events implements Listener
 			{
 				arena.isPlanting = false;
 				arena.getDefuseInventory().clear();
-				p.sendTitle("§cБОМБА НЕ ОБЕЗВРЕЖЕНА!", "§eПоследовательность не верна...");
+				p.sendTitle("В§cР‘РћРњР‘Рђ РќР• РћР‘Р•Р—Р’Р Р•Р–Р•РќРђ!", "В§eРџРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚СЊ РЅРµ РІРµСЂРЅР°...");
 				p.closeInventory(); 
 				return;
 			}
@@ -447,8 +449,8 @@ public class Events implements Listener
 				if (!pl.isOnline()) {list.remove(plID); continue;}
 				int team = arena.getPlayerTeam(pl);
 				if (team == 1) 
-				{pl.sendTitle("§c§lПоражение...", "§cБомба была обезврежена.");}
-				else {pl.sendTitle("§a§lПобеда!", "§aБомба была обезврежена.");}
+				{pl.sendTitle("В§cВ§lРџРѕСЂР°Р¶РµРЅРёРµ...", "В§cР‘РѕРјР±Р° Р±С‹Р»Р° РѕР±РµР·РІСЂРµР¶РµРЅР°.");}
+				else {pl.sendTitle("В§aВ§lРџРѕР±РµРґР°!", "В§aР‘РѕРјР±Р° Р±С‹Р»Р° РѕР±РµР·РІСЂРµР¶РµРЅР°.");}
 			}
 			
 			arena.getDefuseInventory().clear();
@@ -463,7 +465,7 @@ public class Events implements Listener
 			return;
 		}
 		
-		if (title.equals("§9§lВыбор команды"))
+		if (title.equals("В§9В§lР’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹"))
 		{
 			e.setCancelled(true);
 			if (arena == null) {p.closeInventory(); return;}
@@ -474,32 +476,32 @@ public class Events implements Listener
 			if (!meta.hasDisplayName()) {return;}
 			String itName = meta.getDisplayName();
 			
-			if (itName.equals("§9§lКоманда ЗАЩИТЫ"))
+			if (itName.equals("В§9В§lРљРѕРјР°РЅРґР° Р—РђР©РРўР«"))
 			{
 				if (arena.getTeamDefend().contains(p.getUniqueId())) 
 				{
-					p.sendTitle("§eВы уже в этой команде","§e-_-");
-					p.sendMessage("§eВы уже в этой команде.");
+					p.sendTitle("В§eР’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ","В§e-_-");
+					p.sendMessage("В§eР’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ.");
 					return;
 				}
 				
 				arena.getTeamDefend().add(p.getUniqueId());
-				p.sendTitle("§2Теперь вы §9§lЗАЩИЩАЮЩИЙ","§e(*)_(*)");
-				p.sendMessage("§2Вы присоединились к команде защиты.");
+				p.sendTitle("В§2РўРµРїРµСЂСЊ РІС‹ В§9В§lР—РђР©РР©РђР®Р©РР™","В§e(*)_(*)");
+				p.sendMessage("В§2Р’С‹ РїСЂРёСЃРѕРµРґРёРЅРёР»РёСЃСЊ Рє РєРѕРјР°РЅРґРµ Р·Р°С‰РёС‚С‹.");
 			}
 			
-			if (itName.equals("§6§lКоманда АТАКИ"))
+			if (itName.equals("В§6В§lРљРѕРјР°РЅРґР° РђРўРђРљР"))
 			{
 				if (arena.getTeamAttack().contains(p.getUniqueId())) 
 				{
-					p.sendTitle("Вы уже в этой команде","-_-");
-					p.sendMessage("Вы уже в этой команде.");
+					p.sendTitle("Р’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ","-_-");
+					p.sendMessage("Р’С‹ СѓР¶Рµ РІ СЌС‚РѕР№ РєРѕРјР°РЅРґРµ.");
 					return;
 				}
 				
 				arena.getTeamAttack().add(p.getUniqueId());
-				p.sendTitle("§2Теперь вы §6§lАТАКУЮЩИЙ","§e(*)_(*)");
-				p.sendMessage("§2Вы присоединились к команде атаки.");
+				p.sendTitle("В§2РўРµРїРµСЂСЊ РІС‹ В§6В§lРђРўРђРљРЈР®Р©РР™","В§e(*)_(*)");
+				p.sendMessage("В§2Р’С‹ РїСЂРёСЃРѕРµРґРёРЅРёР»РёСЃСЊ Рє РєРѕРјР°РЅРґРµ Р°С‚Р°РєРё.");
 			}
 			
 			p.closeInventory();
@@ -532,7 +534,7 @@ public class Events implements Listener
 		if (!meta.hasDisplayName()) {return;}
 		String itName = meta.getDisplayName();
 		
-		// Обезвреживание
+		// РћР±РµР·РІСЂРµР¶РёРІР°РЅРёРµ
 		if (item.equals(arena.getDefuseKitsItem()))
 		{	
 			e.setCancelled(true);
@@ -561,14 +563,14 @@ public class Events implements Listener
 			_types.add((short) 13);
 			
 			ArrayList<String> _strings = new ArrayList<>();
-			_strings.add("§e1 - §2Берём бомбу...");
-			_strings.add("§e2 - §2Вскрываем...");
-			_strings.add("§e3 - §2Думаем...");
-			_strings.add("§e4 - §2Выбираем провод...");
-			_strings.add("§e5 - §2Молимся...");
-			_strings.add("§e6 - §2Достаём щипцы...");
-			_strings.add("§e7 - §2Режем провод...");
-			_strings.add("§e8 - §2Кидаем бомбу в помойку...");
+			_strings.add("В§e1 - В§2Р‘РµСЂС‘Рј Р±РѕРјР±Сѓ...");
+			_strings.add("В§e2 - В§2Р’СЃРєСЂС‹РІР°РµРј...");
+			_strings.add("В§e3 - В§2Р”СѓРјР°РµРј...");
+			_strings.add("В§e4 - В§2Р’С‹Р±РёСЂР°РµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e5 - В§2РњРѕР»РёРјСЃСЏ...");
+			_strings.add("В§e6 - В§2Р”РѕСЃС‚Р°С‘Рј С‰РёРїС†С‹...");
+			_strings.add("В§e7 - В§2Р РµР¶РµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e8 - В§2РљРёРґР°РµРј Р±РѕРјР±Сѓ РІ РїРѕРјРѕР№РєСѓ...");
 			
 			Inventory inv = arena.getDefuseInventory();
 			for(int i = 0; i < _strings.size(); i++)
@@ -590,7 +592,7 @@ public class Events implements Listener
 			return;
 		}
 		
-		// Выбор оперативника
+		// Р’С‹Р±РѕСЂ РѕРїРµСЂР°С‚РёРІРЅРёРєР°
 		if (item.equals(arena.getOperatorItem()))
 		{
 			e.setCancelled(true);
@@ -602,29 +604,29 @@ public class Events implements Listener
 			return;
 		}
 		
-		// Выбор команды
+		// Р’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹
 		if (item.equals(arena.getTeamItem()))
 		{
 			e.setCancelled(true);
 			String s = arena.getState();
 			if (!s.equals("WAITING")) {p.getInventory().remove(item); return;}
-			Inventory inv = Bukkit.createInventory(null, 9, "§9§lВыбор команды");
+			Inventory inv = Bukkit.createInventory(null, 9, "В§9В§lР’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹");
 			for(int i = 0; i < 9; i++) {inv.setItem(i, new ItemStack(Material.WEB));}
 			ItemStack is = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 3);
 			ItemMeta im = is.getItemMeta();
-			im.setDisplayName("§e§lКоманда §9§lЗАЩИТЫ");
+			im.setDisplayName("В§eВ§lРљРѕРјР°РЅРґР° В§9В§lР—РђР©РРўР«");
 			is.setItemMeta(im);
 			inv.setItem(2, is);
 			is = new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 1);
 			im = is.getItemMeta();
-			im.setDisplayName("§e§lКоманда §6§lАТАКИ");
+			im.setDisplayName("В§eВ§lРљРѕРјР°РЅРґР° В§6В§lРђРўРђРљР");
 			is.setItemMeta(im);
 			inv.setItem(6, is);
 			p.openInventory(inv);
 			return;
 		}
 		
-		// Бомба
+		// Р‘РѕРјР±Р°
 		if (item.equals(arena.getBombItem()))
 		{	
 			e.setCancelled(true);
@@ -655,11 +657,11 @@ public class Events implements Listener
 			_types.add((short) 5);
 			
 			ArrayList<String> _strings = new ArrayList<>();
-			_strings.add("§e1 - §2Достаём бомбу...");
-			_strings.add("§e2 - §2Вставляем провод...");
-			_strings.add("§e3 - §2Вводим код...");
-			_strings.add("§e4 - §2Включаем таймер...");
-			_strings.add("§e5 - §2Кладём бомбу на плент...");
+			_strings.add("В§e1 - В§2Р”РѕСЃС‚Р°С‘Рј Р±РѕРјР±Сѓ...");
+			_strings.add("В§e2 - В§2Р’СЃС‚Р°РІР»СЏРµРј РїСЂРѕРІРѕРґ...");
+			_strings.add("В§e3 - В§2Р’РІРѕРґРёРј РєРѕРґ...");
+			_strings.add("В§e4 - В§2Р’РєР»СЋС‡Р°РµРј С‚Р°Р№РјРµСЂ...");
+			_strings.add("В§e5 - В§2РљР»Р°РґС‘Рј Р±РѕРјР±Сѓ РЅР° РїР»РµРЅС‚...");
 			
 			Inventory inv = arena.getPlantInventory();
 			for(int i = 0; i < 5; i++)
@@ -682,31 +684,31 @@ public class Events implements Listener
 			return;
 		}
 		
-		if (itName.equals("§9§lВыбор команды") && m.equals(Material.WOOL))
+		if (itName.equals("В§9В§lР’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹") && m.equals(Material.WOOL))
 		{
 			ItemStack defendItem = new ItemStack(Material.WOOL);
 			ItemMeta dMeta = defendItem.getItemMeta();
 			ArrayList<String> lore = new ArrayList<>();
-			dMeta.setDisplayName("§9§lКоманда ЗАЩИТЫ");
+			dMeta.setDisplayName("В§9В§lРљРѕРјР°РЅРґР° Р—РђР©РРўР«");
 			defendItem.setDurability((short) 3);
-			lore.add("§eЗащищайте территорию от атакующих.");
-			lore.add("§eНе дайте им заложить бомбу.");
-			lore.add("§eЕсли же это произойдёт, обезвредьте её!");
+			lore.add("В§eР—Р°С‰РёС‰Р°Р№С‚Рµ С‚РµСЂСЂРёС‚РѕСЂРёСЋ РѕС‚ Р°С‚Р°РєСѓСЋС‰РёС….");
+			lore.add("В§eРќРµ РґР°Р№С‚Рµ РёРј Р·Р°Р»РѕР¶РёС‚СЊ Р±РѕРјР±Сѓ.");
+			lore.add("В§eР•СЃР»Рё Р¶Рµ СЌС‚Рѕ РїСЂРѕРёР·РѕР№РґС‘С‚, РѕР±РµР·РІСЂРµРґСЊС‚Рµ РµС‘!");
 			dMeta.setLore(lore);
 			defendItem.setItemMeta(dMeta);
 			
 			ItemStack attackItem = new ItemStack(Material.WOOL);
 			ItemMeta aMeta = defendItem.getItemMeta();
 			lore.clear();
-			dMeta.setDisplayName("§6§lКоманда АТАКИ");
+			dMeta.setDisplayName("В§6В§lРљРѕРјР°РЅРґР° РђРўРђРљР");
 			attackItem.setDurability((short) 1);
-			lore.add("§eВзорвите территорию защиты.");
-			lore.add("§eЗаложите бомбу на красных обозначителях.");
-			lore.add("§eЗащитите и не дайте её обезвредить.");
+			lore.add("В§eР’Р·РѕСЂРІРёС‚Рµ С‚РµСЂСЂРёС‚РѕСЂРёСЋ Р·Р°С‰РёС‚С‹.");
+			lore.add("В§eР—Р°Р»РѕР¶РёС‚Рµ Р±РѕРјР±Сѓ РЅР° РєСЂР°СЃРЅС‹С… РѕР±РѕР·РЅР°С‡РёС‚РµР»СЏС….");
+			lore.add("В§eР—Р°С‰РёС‚РёС‚Рµ Рё РЅРµ РґР°Р№С‚Рµ РµС‘ РѕР±РµР·РІСЂРµРґРёС‚СЊ.");
 			dMeta.setLore(lore);
 			defendItem.setItemMeta(aMeta);
 			
-			Inventory inv = Bukkit.createInventory(null, 9, "Выбор команды");
+			Inventory inv = Bukkit.createInventory(null, 9, "Р’С‹Р±РѕСЂ РєРѕРјР°РЅРґС‹");
 			inv.setItem(3, defendItem);
 			inv.setItem(6, attackItem);
 			p.openInventory(inv);
@@ -740,7 +742,7 @@ public class Events implements Listener
 			double dmg = e.getDamage();
 			if (p.getHealth() > dmg) {return;}
 			e.setDamage(p.getHealth()-1.0);
-			arena.deathPlayer(p);
+			arena.addDeathPlayer(p);
 		}
 	}
 }

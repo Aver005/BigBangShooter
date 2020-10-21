@@ -25,7 +25,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
@@ -35,19 +34,18 @@ public class Main extends JavaPlugin
 {
 	public HashMap<String, Arena> arenas = new HashMap<>();
 	public HashMap<UUID, Arena> players = new HashMap<>();
+	public HashMap<Arena, Integer> arenaMenuSlots = new HashMap<>();
 	
-	public Inventory menuInventory = null;
+	public Inventory mainMenuInventory;
 	public FileConfiguration config = null;
 	public String mainFolder = getDataFolder() + File.separator;
 	
-	private Scoreboard scoreboard;
 	private static Main main = null;
 	
 	@Override
 	public void onEnable() 
 	{
 		main = this;
-		setScoreboard(getServer().getScoreboardManager().getNewScoreboard());
 		
 		// Events
 		getServer().getPluginManager().registerEvents(new Events(this), this);
@@ -157,7 +155,8 @@ public class Main extends JavaPlugin
 	
 	public void loadCFG() 
 	{
-		menuInventory = Bukkit.createInventory(null, 27, "§9§lВыбор арены");
+		mainMenuInventory = Bukkit.createInventory(null, 54, "§9§lВыбор арены");
+		mainMenuInventory = fillFreeSlots(mainMenuInventory, (short) 3, "=");
 		
 		File file = new File(mainFolder);
 		if (!file.exists()) {file.mkdir();}
@@ -176,6 +175,7 @@ public class Main extends JavaPlugin
 			String arName = f.getName().replace(".arena", "");
 			String ID = arName.toUpperCase();
 			UUID plID = UUID.fromString(yml.getString("Creator"));
+			if (plID == null) {plID = UUID.randomUUID();}
 			Arena arena = new Arena(ID, plID);
 			arena.setName(yml.getString("Name"));
 			arena.setDescription(yml.getString("Description"));
@@ -221,13 +221,16 @@ public class Main extends JavaPlugin
 				arena.getAttackSpawns().add(StoL(s));
 			}
 			
-			if (arena.isEnabled)
-			{
-				ItemStack is = genarateArenaMenuItem(arena);
-				menuInventory.addItem(is);
-			}
-			
 			arenas.put(arName, arena);
+			
+			if (arena.isStarted) {continue;}
+			if (!arena.isEnabled) {continue;}
+			
+			ItemStack is = genarateArenaMenuItem(arena);
+			if (is == null) {continue;}
+			int freeSlot = mainMenuInventory.firstEmpty();
+			arenaMenuSlots.put(arena, freeSlot);
+			mainMenuInventory.setItem(freeSlot, is);
 		}
 	}
 
@@ -347,7 +350,24 @@ public class Main extends JavaPlugin
 
 	public void OpenMainMenu(Player p)
 	{
-		p.openInventory(menuInventory);
+		p.openInventory(mainMenuInventory);
+	}
+	
+	public Inventory fillFreeSlots(Inventory inv, short data, String type)
+	{
+		for(int i = 0; i < inv.getSize(); i++) 
+		{
+			if (inv.getItem(i) != null) {continue;}
+			
+			if (type.equals("WALLS") && (i > 9 && i < inv.getSize()-10 && i % 9 != 0 && (i+1) % 9 != 0)) {continue;}
+			if (type.equals("=") && (i > 8 && i < inv.getSize()-9)) {continue;}
+			ItemStack item = new ItemStack(Material.STAINED_GLASS_PANE, 1, data);
+			ItemMeta meta = item.getItemMeta();
+			meta.setDisplayName(" ");
+			item.setItemMeta(meta);
+			inv.setItem(i,item);
+		}
+		return inv;
 	}
 
 	public Arena getArenaByName(String name)
@@ -377,13 +397,48 @@ public class Main extends JavaPlugin
 		return is;
 	}
 
-	public Scoreboard getScoreboard()
+	public void refreshArenaInMenu(Arena arena)
 	{
-		return scoreboard;
+		int arenaSlot = arenaMenuSlots.getOrDefault(arena, -1);
+		if (arenaSlot == -1) {return;}
+		ItemStack item = genarateArenaMenuItem(arena);
+		mainMenuInventory.setItem(arenaSlot, item);
 	}
 
-	public void setScoreboard(Scoreboard scoreboard)
+	public boolean setEnabledOfMenuArena(Arena arena, boolean b)
 	{
-		this.scoreboard = scoreboard;
+		int arenaSlot = arenaMenuSlots.getOrDefault(arena, -1);
+		if (arenaSlot == -1) 
+		{
+			if (b)
+			{
+				ItemStack is = genarateArenaMenuItem(arena);
+				int freeSlot = mainMenuInventory.firstEmpty();
+				mainMenuInventory.setItem(freeSlot, is);
+				arenaMenuSlots.put(arena, freeSlot);
+				return true;
+			}
+			
+			return false;
+		}
+		
+		if (b) {return false;}
+		
+		mainMenuInventory.setItem(arenaSlot, null);
+		arenaMenuSlots.remove(arena);
+		
+		for(int i = arenaSlot + 1; i < 44; i++)
+		{
+			ItemStack nextItem = mainMenuInventory.getItem(i);
+			if (nextItem == null) {continue;}
+			Arena newArena = getArenaByName(nextItem.getItemMeta().getDisplayName());
+			if (newArena == null) {continue;}
+			
+			mainMenuInventory.setItem(i-1, nextItem);
+			mainMenuInventory.setItem(i, null);
+			arenaMenuSlots.put(newArena, i-1);
+		}
+		
+		return true;
 	}
 }

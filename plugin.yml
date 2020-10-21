@@ -1,6 +1,6 @@
 name: BigBangShooter
 main: kiviuly.BigBangShooter.Main
-version: 4.0
+version: 6.3
 commands:
   bbs:
     usage: /bbs help - For help message

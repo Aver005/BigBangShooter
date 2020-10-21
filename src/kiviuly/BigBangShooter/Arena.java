@@ -23,7 +23,9 @@ import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.scoreboard.Team;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
 
 public class Arena 
 {
@@ -68,7 +70,7 @@ public class Arena
 	private ArrayList<UUID> teamDefend = new ArrayList<>();
 	private ArrayList<UUID> teamAttack = new ArrayList<>();
 	private ArrayList<UUID> livePlayers = new ArrayList<>();
-	private ArrayList<UUID> deathPlayers = new ArrayList<>();
+	private ArrayList<UUID> addDeathPlayers = new ArrayList<>();
 	private ArrayList<UUID> spectators = new ArrayList<>();
 	
 	private ArrayList<Entity> entities = new ArrayList<>();
@@ -103,16 +105,17 @@ public class Arena
 	private UUID bestRoundKiller = null;
 	private UUID bestMatchKiller = null;
 	
-	private Team defendTeam;
-	private Team attackTeam;
+	//private Team defendTeam;
+	//private Team attackTeam;
 	
 	private BukkitTask mainTimerID = null;
-	
 	private BossBar bossbar = Bukkit.createBossBar("Ожидание", BarColor.WHITE, BarStyle.SEGMENTED_20);
+	private Scoreboard scoreboard;
+	private Objective objective;
 	
 	// Methods
 	
-	public void CCS(String cmd) {main.getServer().dispatchCommand(main.getServer().getConsoleSender(), "scoreboard teams "+cmd);}
+	//public void CCS(String cmd) {main.getServer().dispatchCommand(main.getServer().getConsoleSender(), "scoreboard teams "+cmd);}
 	
 	public Arena(String ID, UUID id)
 	{
@@ -120,8 +123,9 @@ public class Arena
 		this.setCreator(id);
 		this.setName(ID);
 		
-		me = this;
+		setME(this);
 		
+		scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
 		bombItem = new ItemStack(bombMaterial);
 		ItemMeta meta = bombItem.getItemMeta();
 		ArrayList<String> lore = new ArrayList<>();
@@ -160,10 +164,24 @@ public class Arena
 		if (isStarted || !isEnabled || isStarting) {return false;}
 		isStarting = true;
 		
-		CCS("add D"+ID);
-		CCS("add A"+ID);
-		CCS("option D"+ID+" nametagVisibility hideForOtherTeams");
-		CCS("option A"+ID+" nametagVisibility hideForOtherTeams");
+		//CCS("add D"+ID);
+		//CCS("add A"+ID);
+		//CCS("option D"+ID+" nametagVisibility hideForOtherTeams");
+		//CCS("option A"+ID+" nametagVisibility hideForOtherTeams");
+		
+		objective = scoreboard.registerNewObjective(ID, "");
+		objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+		objective.setDisplayName("§b§lBig Bang Shooter");
+		
+		for(ItemStack is : operatorsInventory.getContents())
+		{
+			if (is == null) {continue;}
+			if (!is.hasItemMeta()) {continue;}
+			ItemMeta meta = is.getItemMeta();
+			if (!meta.hasLore()) {continue;}
+			meta.setLore(new ArrayList<>());
+			is.setItemMeta(meta);
+		}
 		
 		new BukkitRunnable() 
 		{
@@ -183,6 +201,8 @@ public class Arena
 					return;
 				}
 				
+				
+				
 				// Начинается игра
 				if (timer == 0)
 				{
@@ -193,10 +213,13 @@ public class Arena
 					bossbar.setColor(BarColor.GREEN);
 					bossbar.setStyle(BarStyle.SOLID);
 					
+					main.setEnabledOfMenuArena(me, false);
 					roundState = "FREEZE TIME";
 					time = 8;
 					round = 0;
 					
+					objective.getScore("§6§lИгроки:").setScore(12);
+					int i = 11;
 					for(UUID plID : getAllPlayers())
 					{
 						Player pl = Bukkit.getPlayer(plID);
@@ -205,9 +228,13 @@ public class Arena
 						pl.setLevel(timer);
 						pl.setExp(0F);
 						
-						if (getPlayerOperator().getOrDefault(pl.getName(), "").equals("")) {pl.getInventory().clear();}
-						teleportToSpawns(pl);
+						String name = pl.getName();
 						int team = getPlayerTeam(pl);
+						String _clr = "§b";
+						
+						giveOperatorItems(pl, getPlayerOperator().getOrDefault(pl.getName()+"/"+team, ""));
+						teleportToSpawns(pl);
+						
 						if (team == 0) 
 						{
 							pl.sendTitle("§eРаунд 1", "§2Вы играете за §9ЗАЩИТУ"); 
@@ -216,12 +243,12 @@ public class Arena
 						
 						if (team == 1) 
 						{
+							_clr = "§e";
 							pl.sendTitle("§eРаунд 1", "§2Вы играете за §6АТАКУ"); 
 							main.getServer().dispatchCommand(main.getServer().getConsoleSender(), "scoreboard teams join A"+ID+" "+pl.getName());
 						}
 						
-						bossbar.addPlayer(pl);
-						pl.getInventory().setItem(8, operatorItem);
+						if (i > 0) {objective.getScore(_clr+name+" §f§l— §e0 §f§l— §e0").setScore(i); i--;}
 					}
 					
 					cancel(); 
@@ -238,7 +265,6 @@ public class Arena
 					pl.setExp(Float.parseFloat(bossbar.getProgress()+""));
 					
 					if (timer <= 5 || timer % 5 == 0) {pl.sendTitle("§aНачало через §e"+timer+" §aсек", "");}
-					
 				}
 				
 				timer--;
@@ -309,17 +335,21 @@ public class Arena
 							if (pl == null) {continue;}
 							if (!pl.isOnline()) {continue;}
 							
+							String h = "";
+							String f = "";
 							int team = getPlayerTeam(pl);
 							if (team == 0) 
 							{
-								if (winTeam == 0) {pl.sendTitle("§a§lПобеда!", "§2Время закончилось. Бомбы нет.");}
-								if (winTeam == 1) {pl.sendTitle("§c§lПоражение...", "§cВремя закончилось. Бомбы поставлена.");}
+								if (winTeam == 0) {h = "§a§lПобеда!"; f = "§2Время закончилось. Бомбы нет.";}
+								if (winTeam == 1) {h = "§c§lПоражение..."; f = "§cВремя закончилось. Бомбы поставлена.";}
 							}
 							else 
 							{
-								if (winTeam == 0) {pl.sendTitle("§c§lПоражение...", "§cВремя закончилось. Бомбы нет.");}
-								if (winTeam == 1) {pl.sendTitle("§a§lПобеда!", "§aБомба взорвалась.");}
+								if (winTeam == 0) {h = "§c§lПоражение..."; f = "§cВремя закончилось. Бомбы нет.";}
+								if (winTeam == 1) {h = "§a§lПобеда!"; f = "§aБомба взорвалась.";}
 							}
+							
+							pl.sendTitle(h, f);
 						}
 						
 						return;
@@ -327,31 +357,7 @@ public class Arena
 					
 					if (roundState.equals("STOP"))
 					{
-						main.menuInventory.addItem(main.genarateArenaMenuItem(me));
-						
-						for(Location l : getEditedBlocks().keySet())
-						{
-							if (l == null) {continue;}
-							Material m = getEditedBlocks().get(l);
-							if (m == null) {continue;}
-							l.getBlock().setType(m);
-						}
-						
-						roundState = "WAITING";
-						for(UUID plID : getAllPlayers())
-						{
-							if (plID == null) {continue;}
-							Player pl = Bukkit.getPlayer(plID);
-							if (pl == null) {continue;}
-							if (!pl.isOnline()) {continue;}
-							pl.setGameMode(GameMode.ADVENTURE);
-							pl.teleport(lobbyLocation);
-							pl.getInventory().clear();
-							pl.getInventory().setItem(8, operatorItem);
-						}
-						
-						defendTeam.unregister();
-						attackTeam.unregister();
+						Stop(1);
 						cancel();
 						return;
 					}
@@ -364,6 +370,16 @@ public class Arena
 							Material m = getEditedBlocks().get(l);
 							if (m == null) {continue;}
 							l.getBlock().setType(m);
+						}
+						
+						for(ItemStack is : operatorsInventory.getContents())
+						{
+							if (is == null) {continue;}
+							if (!is.hasItemMeta()) {continue;}
+							ItemMeta meta = is.getItemMeta();
+							if (!meta.hasLore()) {continue;}
+							meta.setLore(new ArrayList<>());
+							is.setItemMeta(meta);
 						}
 						
 						if (round == maxRounds)
@@ -396,7 +412,7 @@ public class Arena
 						isPlanting = false;
 						isDefusing = false;
 						
-						ArrayList<UUID> players = (ArrayList<UUID>) deathPlayers.clone();
+						ArrayList<UUID> players = (ArrayList<UUID>) addDeathPlayers.clone();
 						players.addAll(livePlayers);
 						for(UUID plID : players)
 						{
@@ -406,42 +422,15 @@ public class Arena
 							if (!pl.isOnline()) {continue;}
 							
 							if (!livePlayers.contains(plID)) {livePlayers.add(plID);}
-							if (deathPlayers.contains(plID)) {deathPlayers.remove(plID);}
+							if (addDeathPlayers.contains(plID)) {addDeathPlayers.remove(plID);}
 							
 							for(PotionEffect pe : pl.getActivePotionEffects()) {pl.removePotionEffect(pe.getType());}
 							pl.setGameMode(GameMode.ADVENTURE);
 							pl.setHealth(20.0);
 							pl.setFoodLevel(20);
-							String plOp = getPlayerOperator().getOrDefault(pl.getName(), "");
+							String plOp = getPlayerOperator().getOrDefault(pl.getName()+"/"+getPlayerTeam(pl), "");
 							pl.getInventory().clear();
-							if (!plOp.isEmpty())
-							{
-								ArrayList<ItemStack> isList = getOperatorsItems().get(plOp);
-								int i = 0;
-								for(ItemStack is : isList)
-								{
-									if (is == null) {continue;}
-									is = is.clone();
-									String matName = is.getType().name().toUpperCase();
-									
-									if (matName.contains("LEATHER"))
-									{
-										LeatherArmorMeta tam = (LeatherArmorMeta) is.getItemMeta();
-										if (getPlayerTeam(pl) == 0) {tam.setColor(Color.AQUA);}
-										if (getPlayerTeam(pl) == 1) {tam.setColor(Color.ORANGE);}
-										is.setItemMeta(tam);
-									}
-									
-									if (matName.contains("HELMET")) {pl.getInventory().setHelmet(is); continue;}
-									if (matName.contains("CHESTPLATE")) {pl.getInventory().setChestplate(is); continue;}
-									if (matName.contains("LEGGINGS")) {pl.getInventory().setLeggings(is); continue;}
-									if (matName.contains("BOOTS")) {pl.getInventory().setBoots(is); continue;}
-									
-									if (i == 6) {i = 9;}
-									pl.getInventory().setItem(i, is);
-									i++;
-								}
-							}
+							if (!plOp.isEmpty()) {giveOperatorItems(pl, plOp);}
 							teleportToSpawns(pl);
 						}
 					}
@@ -462,21 +451,9 @@ public class Arena
 					
 					if (time % 5 == 0 && time < 20)
 					{
-						String title = "";
-						String footer = "";
-						
-						if (roundState.equals("PLAYING"))
-						{
-							title = "§eОсталось "+time+" сек";
-							footer = "§e§lПоторопитесь!";
-						}
+						if (roundState.equals("PLAYING")) {pl.sendTitle("§eОсталось "+time+" сек", "§e§lПоторопитесь!");}
 						else if (roundState.equals("FREEZE TIME"))
-						{
-							title = "§2Раунд начнётся через §e"+time+" §2сек";
-							footer = "§2Вы готовы?";
-						}
-						
-						pl.sendTitle(title, footer);
+						{pl.sendTitle("§2Раунд начнётся через §e"+time+" §2сек", "§2Вы готовы?");}
 					}
 				}
 				
@@ -494,20 +471,79 @@ public class Arena
 		return true;
 	}
 	
-	public void addPlayer(Player p) 
+	public void Stop(int i)
 	{
-		UUID id = p.getUniqueId();
-		if (getAllPlayers().contains(id)) {return;}
-		if (isStarted || !isEnabled) {return;}
-		livePlayers.add(id);
-		main.savePlayerData(p);
-		main.clearPlayer(p);
-		p.teleport(lobbyLocation);
-		giveClassItem(p);
+		if (!isStarted) {return;}
 		
-		if (livePlayers.size() >= minPlayers) {Start(20);}
+		isStarted = false;
+		isDefusing = false;
+		isPlanted = false;
+		isStarting = false;
+		
+		mainTimerID.cancel();
+		for(Location l : getEditedBlocks().keySet())
+		{
+			if (l == null) {continue;}
+			Material m = getEditedBlocks().get(l);
+			if (m == null) {continue;}
+			l.getBlock().setType(m);
+		}
+		
+		roundState = "WAITING";
+		for(UUID plID : getAllPlayers())
+		{
+			if (plID == null) {continue;}
+			Player pl = Bukkit.getPlayer(plID);
+			if (pl == null) {continue;}
+			if (!pl.isOnline()) {continue;}
+			pl.setGameMode(GameMode.ADVENTURE);
+			pl.teleport(lobbyLocation);
+			pl.getInventory().clear();
+			pl.getInventory().setItem(8, operatorItem);
+		}
+		
+		objective.unregister();
+		main.setEnabledOfMenuArena(me, true);
+		
+		if (getAllPlayers().size() >= minPlayers) {Start(15);}
 	}
-	
+
+	public void giveOperatorItems(Player pl, String plOp)
+	{
+		ArrayList<ItemStack> isList = getOperatorsItems().getOrDefault(plOp, new ArrayList<>());
+		if (isList == null) {return;}
+		if (isList.size() == 0) {return;}
+		int i = 0;
+		int team = getPlayerTeam(pl);
+		for(ItemStack is : isList)
+		{
+			if (is == null) {continue;}
+			is = is.clone();
+			String matName = is.getType().name().toUpperCase();
+			
+			if (matName.contains("LEATHER"))
+			{
+				LeatherArmorMeta tam = (LeatherArmorMeta) is.getItemMeta();
+				if (team == 0) {tam.setColor(Color.AQUA);}
+				if (team == 1) {tam.setColor(Color.ORANGE);}
+				is.setItemMeta(tam);
+			}
+			
+			if (matName.contains("HELMET")) {pl.getInventory().setHelmet(is); continue;}
+			if (matName.contains("CHESTPLATE")) {pl.getInventory().setChestplate(is); continue;}
+			if (matName.contains("LEGGINGS")) {pl.getInventory().setLeggings(is); continue;}
+			if (matName.contains("BOOTS")) {pl.getInventory().setBoots(is); continue;}
+			
+			if (i == 6) {i = 9;}
+			pl.getInventory().setItem(i, is);
+			i++;
+		}
+		
+		getPlayerOperator().put(pl.getName()+"/"+team, plOp);
+		getPlayerOperator().put(plOp+"/"+team, pl.getName());
+		giveClassItem(pl);
+	}
+
 	public void giveClassItem(Player p)
 	{
 		p.getInventory().setItem(8, operatorItem);
@@ -522,33 +558,95 @@ public class Arena
 		UUID id = p.getUniqueId();
 		if (!getAllPlayers().contains(id)) {return;}
 		
-		CCS("remove D"+ID);
-		CCS("remove A"+ID);
+		//CCS("remove D"+ID);
+		//CCS("remove A"+ID);
 		
-		deathPlayers.remove(id);
+		addDeathPlayers.remove(id);
 		teamAttack.remove(id);
 		teamDefend.remove(id);
 		livePlayers.remove(id);
 		spectators.remove(id);
 		bossbar.removePlayer(p);
+		p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
 		main.clearPlayer(p);
 		main.loadPlayerData(p);
 		
-		if (livePlayers.size() == 0) {mainTimerID.cancel();}
+		main.refreshArenaInMenu(this);
+		if (livePlayers.size() < 2) {Stop(1);}
+	}
+
+	public void teleportToSpawns(Player pl) 
+	{
+		UUID plID = pl.getUniqueId();
+		Location l = null;
+		Random rnd = new Random(); 
+		ArrayList<Integer> _spns = new ArrayList<>();
+		int t = getPlayerTeam(pl);
+		
+		if (t == 0) 
+		{
+			if (!teamDefend.contains(plID)) {teamDefend.add(plID);}
+			int _tempTeam = rnd.nextInt(getDefendSpawns().size()-1);
+			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getDefendSpawns().size()-1);}
+			l = getDefendSpawns().get(_tempTeam);
+			
+		}
+		else 
+		{
+			if (!teamAttack.contains(plID)) {teamAttack.add(plID);}
+			int _tempTeam = rnd.nextInt(getAttackSpawns().size()-1);
+			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getAttackSpawns().size()-1);}
+			l = getAttackSpawns().get(_tempTeam);
+		}
+		
+		giveClassItem(pl);
+		pl.teleport(l.clone().add(0.5,0,0.5));
 	}
 	
-	public void deathPlayer(Player p) 
+	public void StartNewRound(Player p)
+	{
+		//UUID plID = p.getUniqueId();
+		//int team = getPlayerTeam(p);
+		
+		// ТП игрока на респ
+		// Выдать предметы предыдущего раунда (если не умирал)
+		// Выдать предмет выбора оператора
+	}
+
+	public void addPlayer(Player p) 
+	{
+		UUID id = p.getUniqueId();
+		if (getAllPlayers().contains(id)) {return;}
+		if (isStarted || !isEnabled) {return;}
+		livePlayers.add(id);
+		bossbar.addPlayer(p);
+		main.savePlayerData(p);
+		main.clearPlayer(p);
+		p.teleport(lobbyLocation);
+		p.setScoreboard(scoreboard);
+		
+		if (livePlayers.size() >= minPlayers) {Start(20);}
+	}
+
+	public void addDeathPlayer(Player p) 
 	{
 		UUID plID = p.getUniqueId();
-		deathPlayers.add(plID);
+		addDeathPlayers.add(plID);
 		livePlayers.remove(plID);
 		p.setHealth(20.0);
 		p.setGameMode(GameMode.SPECTATOR);
+		p.getInventory().clear();
 		if (p.getOpenInventory() != null) {p.closeInventory();}
 		allDeaths++;
 		
+		String opName = playerOperator.getOrDefault(p.getName()+"/"+getPlayerTeam(p), "");
+		if (!opName.isEmpty()) {playerOperator.remove(opName); playerOperator.remove(p.getName());}
+		
 		int _deaths = playersMatchStats.getOrDefault(p.getName()+"-Round-"+round+"-Deaths", 0) + 1;
 		playersMatchStats.put(p.getName()+"-Round-"+round+"-Deaths", _deaths);
+		
+		_deaths = playersMatchStats.getOrDefault(p.getName()+"-Deaths", 0) + 1;
+		playersMatchStats.put(p.getName()+"-Deaths", _deaths);
 		
 		int defLived = 0;
 		int attLived = 0;
@@ -556,8 +654,8 @@ public class Arena
 		{
 			if (id == null) {continue;}
 			Player pl = Bukkit.getPlayer(id);
-			if (pl == null) {livePlayers.remove(id); deathPlayers.add(id); continue;}
-			if (!pl.isOnline()) {livePlayers.remove(id); deathPlayers.add(id); continue;}
+			if (pl == null) {livePlayers.remove(id); addDeathPlayers.add(id); continue;}
+			if (!pl.isOnline()) {livePlayers.remove(id); addDeathPlayers.add(id); continue;}
 			if (!pl.getGameMode().equals(GameMode.ADVENTURE)) {continue;}
 			int team = getPlayerTeam(pl);
 			if (team == 0) {defLived++;}
@@ -616,10 +714,31 @@ public class Arena
 		allKills++;
 		roundKills++;
 		
-		int _deaths = playersMatchStats.getOrDefault(p.getName()+"-Round-"+round+"-Deaths", 0) + 1;
-		playersMatchStats.put(p.getName()+"-Round-"+round+"-Deaths", _deaths);
+		int _kills = playersMatchStats.getOrDefault(killer.getName()+"-Round-"+round+"-Kills", 0) + 1;
+		playersMatchStats.put(killer.getName()+"-Round-"+round+"-Kills", _kills);
 		
-		deathPlayer(p);
+		int _deaths = playersMatchStats.getOrDefault(killer.getName()+"-Kills", 0) + 1;
+		playersMatchStats.put(killer.getName()+"-Kills", _deaths);
+		
+		addDeathPlayer(p);
+		
+		int i = 11;
+		for(UUID id : getAllPlayers())
+		{
+			if (i == 0) {continue;}
+			if (id == null) {continue;}
+			Player pl = Bukkit.getPlayer(id);
+			if (pl == null) {continue;}
+			if (!pl.isOnline()) {continue;}
+			
+			String _clr = "§b";
+			int team = getPlayerTeam(pl);
+			if (team == 1) {_clr = "§e";}
+			_kills = playersMatchStats.getOrDefault(pl.getName()+"-Kills", 0);
+			_deaths = playersMatchStats.getOrDefault(pl.getName()+"-Deaths", 0);
+			
+			objective.getScore(_clr+pl.getName()+" §f§l— §e"+_kills+" §f§l— §e"+_deaths).setScore(i);
+		}
 	}
 	
 	public int getPlayerTeam(Player pl)
@@ -640,35 +759,6 @@ public class Arena
 		
 		return t;
 	}
-	
-	public void teleportToSpawns(Player pl) 
-	{
-		UUID plID = pl.getUniqueId();
-		Location l = null;
-		Random rnd = new Random(); 
-		ArrayList<Integer> _spns = new ArrayList<>();
-		int t = getPlayerTeam(pl);
-		
-		if (t == 0) 
-		{
-			if (!teamDefend.contains(plID)) {teamDefend.add(plID);}
-			int _tempTeam = rnd.nextInt(getDefendSpawns().size()-1);
-			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getDefendSpawns().size()-1);}
-			l = getDefendSpawns().get(_tempTeam);
-			
-		}
-		else 
-		{
-			if (!teamAttack.contains(plID)) {teamAttack.add(plID);}
-			int _tempTeam = rnd.nextInt(getAttackSpawns().size()-1);
-			while (_spns.contains(_tempTeam)) {_tempTeam = rnd.nextInt(getAttackSpawns().size()-1);}
-			l = getAttackSpawns().get(_tempTeam);
-		}
-		
-		giveClassItem(pl);
-		pl.teleport(l.clone().add(0.5,0,0.5));
-	}
-	
 	
 	public ArrayList<UUID> getAllPlayers()
 	{
@@ -698,7 +788,7 @@ public class Arena
 			list.add(id);
 		}
 		
-		for(UUID id : deathPlayers)
+		for(UUID id : addDeathPlayers)
 		{
 			if (list.contains(id)) {continue;}
 			list.add(id);
@@ -853,12 +943,12 @@ public class Arena
 		this.livePlayers = livePlayers;
 	}
 
-	public ArrayList<UUID> getDeathPlayers() {
-		return deathPlayers;
+	public ArrayList<UUID> getaddDeathPlayers() {
+		return addDeathPlayers;
 	}
 
-	public void setDeathPlayers(ArrayList<UUID> deathPlayers) {
-		this.deathPlayers = deathPlayers;
+	public void setaddDeathPlayers(ArrayList<UUID> addDeathPlayers) {
+		this.addDeathPlayers = addDeathPlayers;
 	}
 
 	public ArrayList<UUID> getSpectators() {
@@ -1111,23 +1201,33 @@ public class Arena
 		this.teamItem = teamItem;
 	}
 
-	public Team getDefendTeam()
+	public Arena getME()
 	{
-		return defendTeam;
+		return me;
 	}
 
-	public void setDefendTeam(Team defendTeam)
+	public void setME(Arena me)
 	{
-		this.defendTeam = defendTeam;
+		this.me = me;
 	}
 
-	public Team getAttackTeam()
+	public Scoreboard getScoreboard()
 	{
-		return attackTeam;
+		return scoreboard;
 	}
 
-	public void setAttackTeam(Team attackTeam)
+	public void setScoreboard(Scoreboard scoreboard)
 	{
-		this.attackTeam = attackTeam;
+		this.scoreboard = scoreboard;
+	}
+
+	public Objective getObjective()
+	{
+		return objective;
+	}
+
+	public void setObjective(Objective objective)
+	{
+		this.objective = objective;
 	}
 }

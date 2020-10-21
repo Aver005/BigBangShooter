@@ -138,8 +138,7 @@ public class Commands implements CommandExecutor
 						Arena arena = main.arenas.get(name);
 						arena.isEnabled = true;
 						SM(p,"§2Арена §b"+name+" §2успешно §lвключена.");
-						ItemStack is = main.genarateArenaMenuItem(arena);
-						main.menuInventory.addItem(is);
+						main.setEnabledOfMenuArena(arena, true);
 						return true;
 					}
 
@@ -149,15 +148,7 @@ public class Commands implements CommandExecutor
 						Arena arena = main.arenas.get(name);
 						arena.isEnabled = false;
 						SM(p,"§2Арена §b"+name+" §2успешно §e§lвыключена.");
-						
-						for(ItemStack is : main.menuInventory)
-						{
-							if (is == null) {continue;}
-							if (!is.hasItemMeta()) {continue;}
-							ItemMeta meta = is.getItemMeta();
-							if (!meta.hasDisplayName()) {continue;}
-							if (meta.getDisplayName().equals(arena.getName())) {main.menuInventory.remove(is); return true;}
-						}
+						main.setEnabledOfMenuArena(arena, false);
 						return true;
 					}
 					
