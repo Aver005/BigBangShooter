@@ -206,6 +206,16 @@ public class Commands implements CommandExecutor
 							p.sendMessage("§2Предметы для оперативника §b§l"+args[2]+"§2 установлены.");
 							return true;
 						}
+						
+						if (sub.equals("setminpl"))
+						{
+							if (!main.arenas.containsKey(name)) {SM(p, "§cАрена с таким названием НЕ существует."); return true;}
+							if (!main.isInt(args[2])) {SM(p, "§cВы ввели не число."); return true;}
+							Arena arena = main.arenas.get(name);
+							arena.setMinPlayers(Integer.parseInt(args[2]));
+							p.sendMessage("§2Минимальное количество игроков для арены §b"+name+"§2 установлено.");
+							return true;
+						}
 					}
 				}
 			}

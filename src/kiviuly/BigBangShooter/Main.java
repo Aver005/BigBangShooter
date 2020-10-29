@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -346,6 +347,34 @@ public class Main extends JavaPlugin
 	
 	public boolean isArmor(ItemStack item) {
 	    return (CraftItemStack.asNMSCopy(item).getItem() instanceof ItemArmor);
+	}
+	
+	public static String randomString(int targetStringLength) 
+	{
+	    int leftLimit = 48; // numeral '0'
+	    int rightLimit = 122; // letter 'z'
+	    Random random = new Random();
+	 
+	    String generatedString = random.ints(leftLimit, rightLimit + 1)
+	      .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+	      .limit(targetStringLength)
+	      .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+	      .toString();
+	 
+	    return generatedString;
+	}
+	
+	public int randomInt(int min, int max) 
+	{
+	    Random rand = new Random();
+	    int randomNum = rand.nextInt((max - min) + 1) + min;
+	    return randomNum;
+	}
+	
+	public boolean isInt(String s)
+	{
+	    try {Integer.parseInt(s); return true;} 
+	    catch (NumberFormatException ex) {return false;}
 	}
 
 	public void OpenMainMenu(Player p)

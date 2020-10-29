@@ -24,8 +24,10 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.NameTagVisibility;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 public class Arena 
 {
@@ -70,7 +72,7 @@ public class Arena
 	private ArrayList<UUID> teamDefend = new ArrayList<>();
 	private ArrayList<UUID> teamAttack = new ArrayList<>();
 	private ArrayList<UUID> livePlayers = new ArrayList<>();
-	private ArrayList<UUID> addDeathPlayers = new ArrayList<>();
+	private ArrayList<UUID> deathPlayers = new ArrayList<>();
 	private ArrayList<UUID> spectators = new ArrayList<>();
 	
 	private ArrayList<Entity> entities = new ArrayList<>();
@@ -101,12 +103,16 @@ public class Arena
 	private int allDeaths = 0;
 	private int roundKills = 0;
 	private int beestRoundKills = 0;
+	private int attackKills = 0;
+	private int defendKills = 0;
+	private int bombPlanted = 0;
+	private int bombDefused = 0;
 	
 	private UUID bestRoundKiller = null;
 	private UUID bestMatchKiller = null;
 	
-	//private Team defendTeam;
-	//private Team attackTeam;
+	private Team defendTeam;
+	private Team attackTeam;
 	
 	private BukkitTask mainTimerID = null;
 	private BossBar bossbar = Bukkit.createBossBar("ŒÊË‰‡ÌËÂ", BarColor.WHITE, BarStyle.SEGMENTED_20);
@@ -157,6 +163,12 @@ public class Arena
 		lore.add("ßeŒÚÍ˚Ú¸ ÏÂÌ˛ ‚˚·Ó‡ ÍÓÏ‡Ì‰˚");
 		meta.setLore(lore);
 		teamItem.setItemMeta(meta);
+		
+		defendTeam = scoreboard.registerNewTeam("d"+ID);
+		defendTeam.setNameTagVisibility(NameTagVisibility.HIDE_FOR_OTHER_TEAMS);
+		
+		attackTeam = scoreboard.registerNewTeam("a"+ID);
+		attackTeam.setNameTagVisibility(NameTagVisibility.HIDE_FOR_OTHER_TEAMS);
 	}
 	
 	public boolean Start(int startTime)
@@ -215,7 +227,7 @@ public class Arena
 					
 					main.setEnabledOfMenuArena(me, false);
 					roundState = "FREEZE TIME";
-					time = 8;
+					time = 16;
 					round = 0;
 					
 					objective.getScore("ß6ßl»„ÓÍË:").setScore(12);
@@ -238,14 +250,14 @@ public class Arena
 						if (team == 0) 
 						{
 							pl.sendTitle("ße–‡ÛÌ‰ 1", "ß2¬˚ Ë„‡ÂÚÂ Á‡ ß9«¿Ÿ»“”"); 
-							main.getServer().dispatchCommand(main.getServer().getConsoleSender(), "scoreboard teams join D"+ID+" "+pl.getName());
+							defendTeam.addPlayer(pl);
 						}
 						
 						if (team == 1) 
 						{
 							_clr = "ße";
-							pl.sendTitle("ße–‡ÛÌ‰ 1", "ß2¬˚ Ë„‡ÂÚÂ Á‡ ß6¿“¿ ”"); 
-							main.getServer().dispatchCommand(main.getServer().getConsoleSender(), "scoreboard teams join A"+ID+" "+pl.getName());
+							pl.sendTitle("ße–‡ÛÌ‰ 1", "ß2¬˚ Ë„‡ÂÚÂ Á‡ ß6¿“¿ ”");
+							attackTeam.addPlayer(pl);
 						}
 						
 						if (i > 0) {objective.getScore(_clr+name+" ßfßló ße0 ßfßló ße0").setScore(i); i--;}
@@ -337,6 +349,7 @@ public class Arena
 							
 							String h = "";
 							String f = "";
+							
 							int team = getPlayerTeam(pl);
 							if (team == 0) 
 							{
@@ -349,7 +362,7 @@ public class Arena
 								if (winTeam == 1) {h = "ßaßlœÓ·Â‰‡!"; f = "ßa¡ÓÏ·‡ ‚ÁÓ‚‡Î‡Ò¸.";}
 							}
 							
-							pl.sendTitle(h, f);
+							if (!h.isEmpty() && !f.isEmpty()) {pl.sendTitle(h, f);}
 						}
 						
 						return;
@@ -377,8 +390,23 @@ public class Arena
 							if (is == null) {continue;}
 							if (!is.hasItemMeta()) {continue;}
 							ItemMeta meta = is.getItemMeta();
-							if (!meta.hasLore()) {continue;}
-							meta.setLore(new ArrayList<>());
+							if (!meta.hasDisplayName()) {continue;}
+							
+							ArrayList<String> lore = new ArrayList<>();
+							String opName = main.removeCC(meta.getDisplayName());
+							
+							for(int i = 0; i < 2; i++)
+							{
+								String pWhoTake = playerOperator.getOrDefault(opName+"/"+i, "");
+								if (!pWhoTake.isEmpty())
+								{
+									lore.add("");
+									lore.add("ßc¬ÁˇÚ:");
+									lore.add("ßb"+pWhoTake);
+								}
+							}
+							
+							meta.setLore(lore);
 							is.setItemMeta(meta);
 						}
 						
@@ -393,9 +421,32 @@ public class Arena
 								if (pl == null) {continue;}
 								if (!pl.isOnline()) {continue;}
 								
-								if (defendRoundsWin > attackRoundsWin) {pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÃ‡Ú˜ ‚˚Ë„‡Î‡: ß9«¿Ÿ»“¿");}
-								if (defendRoundsWin < attackRoundsWin) {pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÃ‡Ú˜ ‚˚Ë„‡Î‡: ß6¿“¿ ¿");}
-								if (defendRoundsWin == attackRoundsWin) {pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÕË˜¸ˇ!");}
+								int winTeam = 0;
+								if (defendRoundsWin > attackRoundsWin) {winTeam = 0; pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÃ‡Ú˜ ‚˚Ë„‡Î‡: ß9«¿Ÿ»“¿");}
+								if (defendRoundsWin < attackRoundsWin) {winTeam = 1; pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÃ‡Ú˜ ‚˚Ë„‡Î‡: ß6¿“¿ ¿");}
+								if (defendRoundsWin == attackRoundsWin) {winTeam = -1; pl.sendTitle("ßeßl»„‡ Á‡ÍÓÌ˜ÂÌ‡!", "ßeÕË˜¸ˇ!");}
+								
+								String _winTeam = "ß9ßl«¿Ÿ»“€";
+								String _bombMessage = "Ó·ÂÁ‚ÂÊÂÌÓ: ße"+bombDefused;
+								int _kills = defendKills;
+								int _roundsWin = defendRoundsWin;
+								
+								if (winTeam == 1) 
+								{
+									_winTeam = "ßeßl¿“¿ »"; 
+									_kills = attackKills;
+									_roundsWin = attackRoundsWin;
+									_bombMessage = "ÛÒÚ‡ÌÓ‚ÎÂÌÓ: ße"+bombPlanted;
+								}
+								
+								pl.sendMessage("ß7========================================================================");
+								pl.sendMessage("");
+								pl.sendMessage("  ßd[œŒ¡≈ƒ¿] ß6ßlœÓ·Â‰ËÚÂÎÂÏ ÒÚ‡ÌÓ‚ËÚÒˇ "+_winTeam+"ß6ßl!");
+								pl.sendMessage("  ßd[œŒ¡≈ƒ¿] ßf–‡ÛÌ‰Ó‚ ‚˚Ë„‡ÌÓ: ße"+_roundsWin);
+								pl.sendMessage("  ßd[œŒ¡≈ƒ¿] ßf”·ËÚÓ: ße"+_kills+"ßf Ë„ÓÍÓ‚");
+								pl.sendMessage("  ßd[œŒ¡≈ƒ¿] ßf¡ÓÏ· "+_bombMessage);
+								pl.sendMessage("");
+								pl.sendMessage("ß7========================================================================");
 							}
 							return;
 						}
@@ -412,7 +463,7 @@ public class Arena
 						isPlanting = false;
 						isDefusing = false;
 						
-						ArrayList<UUID> players = (ArrayList<UUID>) addDeathPlayers.clone();
+						ArrayList<UUID> players = (ArrayList<UUID>) deathPlayers.clone();
 						players.addAll(livePlayers);
 						for(UUID plID : players)
 						{
@@ -422,7 +473,7 @@ public class Arena
 							if (!pl.isOnline()) {continue;}
 							
 							if (!livePlayers.contains(plID)) {livePlayers.add(plID);}
-							if (addDeathPlayers.contains(plID)) {addDeathPlayers.remove(plID);}
+							if (deathPlayers.contains(plID)) {deathPlayers.remove(plID);}
 							
 							for(PotionEffect pe : pl.getActivePotionEffects()) {pl.removePotionEffect(pe.getType());}
 							pl.setGameMode(GameMode.ADVENTURE);
@@ -430,6 +481,7 @@ public class Arena
 							pl.setFoodLevel(20);
 							String plOp = getPlayerOperator().getOrDefault(pl.getName()+"/"+getPlayerTeam(pl), "");
 							pl.getInventory().clear();
+							pl.getInventory().setItemInOffHand(null);
 							if (!plOp.isEmpty()) {giveOperatorItems(pl, plOp);}
 							teleportToSpawns(pl);
 						}
@@ -495,12 +547,33 @@ public class Arena
 			if (plID == null) {continue;}
 			Player pl = Bukkit.getPlayer(plID);
 			if (pl == null) {continue;}
+			
+			int team = getPlayerTeam(pl);
+			if (team == 0) {defendTeam.removePlayer(pl);}
+			if (team == 1) {attackTeam.removePlayer(pl);}
+			
 			if (!pl.isOnline()) {continue;}
 			pl.setGameMode(GameMode.ADVENTURE);
 			pl.teleport(lobbyLocation);
 			pl.getInventory().clear();
+			pl.getInventory().setItemInOffHand(null);
 			pl.getInventory().setItem(8, operatorItem);
 		}
+		
+		teamAttack.clear();
+		teamDefend.clear();
+		livePlayers.clear();
+		spectators.clear();
+		deathPlayers.clear();
+		
+		for(Entity ent : entities)
+		{
+			ent.getLocation().getChunk().load();
+			ent.remove();
+		}
+		
+		for(Location l : editedBlocks.keySet()) {l.getBlock().setType(editedBlocks.get(l));}
+		time = 0;
 		
 		objective.unregister();
 		main.setEnabledOfMenuArena(me, true);
@@ -561,7 +634,7 @@ public class Arena
 		//CCS("remove D"+ID);
 		//CCS("remove A"+ID);
 		
-		addDeathPlayers.remove(id);
+		deathPlayers.remove(id);
 		teamAttack.remove(id);
 		teamDefend.remove(id);
 		livePlayers.remove(id);
@@ -613,11 +686,11 @@ public class Arena
 		// ¬˚‰‡Ú¸ ÔÂ‰ÏÂÚ ‚˚·Ó‡ ÓÔÂ‡ÚÓ‡
 	}
 
-	public void addPlayer(Player p) 
+	public boolean addPlayer(Player p) 
 	{
 		UUID id = p.getUniqueId();
-		if (getAllPlayers().contains(id)) {return;}
-		if (isStarted || !isEnabled) {return;}
+		if (getAllPlayers().contains(id)) {return false;}
+		if (isStarted || !isEnabled) {return false;}
 		livePlayers.add(id);
 		bossbar.addPlayer(p);
 		main.savePlayerData(p);
@@ -626,40 +699,52 @@ public class Arena
 		p.setScoreboard(scoreboard);
 		
 		if (livePlayers.size() >= minPlayers) {Start(20);}
+		return true;
 	}
 
 	public void addDeathPlayer(Player p) 
 	{
 		UUID plID = p.getUniqueId();
-		addDeathPlayers.add(plID);
+		deathPlayers.add(plID);
 		livePlayers.remove(plID);
 		p.setHealth(20.0);
 		p.setGameMode(GameMode.SPECTATOR);
 		p.getInventory().clear();
+		p.getInventory().setItemInOffHand(null);
 		if (p.getOpenInventory() != null) {p.closeInventory();}
 		allDeaths++;
 		
 		String opName = playerOperator.getOrDefault(p.getName()+"/"+getPlayerTeam(p), "");
 		if (!opName.isEmpty()) {playerOperator.remove(opName); playerOperator.remove(p.getName());}
 		
-		int _deaths = playersMatchStats.getOrDefault(p.getName()+"-Round-"+round+"-Deaths", 0) + 1;
-		playersMatchStats.put(p.getName()+"-Round-"+round+"-Deaths", _deaths);
+		int _kills = playersMatchStats.getOrDefault(p.getName()+"-Round-"+round+"-Deaths", 0) + 1;
+		playersMatchStats.put(p.getName()+"-Round-"+round+"-Deaths", _kills);
 		
-		_deaths = playersMatchStats.getOrDefault(p.getName()+"-Deaths", 0) + 1;
+		int _deaths = playersMatchStats.getOrDefault(p.getName()+"-Deaths", 0) + 1;
 		playersMatchStats.put(p.getName()+"-Deaths", _deaths);
 		
 		int defLived = 0;
 		int attLived = 0;
-		for(UUID id : livePlayers)
+		
+		int i = 11;
+		for(UUID id : getAllPlayers())
 		{
 			if (id == null) {continue;}
 			Player pl = Bukkit.getPlayer(id);
-			if (pl == null) {livePlayers.remove(id); addDeathPlayers.add(id); continue;}
-			if (!pl.isOnline()) {livePlayers.remove(id); addDeathPlayers.add(id); continue;}
+			if (pl == null) {livePlayers.remove(id); deathPlayers.add(id); continue;}
+			if (!pl.isOnline()) {livePlayers.remove(id); deathPlayers.add(id); continue;}
 			if (!pl.getGameMode().equals(GameMode.ADVENTURE)) {continue;}
 			int team = getPlayerTeam(pl);
 			if (team == 0) {defLived++;}
 			if (team == 1) {attLived++;}
+			
+			String _clr = "ßb";
+			if (team == 1) {_clr = "ße";}
+			_kills = playersMatchStats.getOrDefault(pl.getName()+"-Kills", 0);
+			_deaths = playersMatchStats.getOrDefault(pl.getName()+"-Deaths", 0);
+			
+			objective.getScore(_clr+pl.getName()+" ßfßló ße"+_kills+" ßfßló ße"+_deaths).setScore(i);
+			i--;
 		}
 		
 		if (defLived == 0) 
@@ -722,23 +807,9 @@ public class Arena
 		
 		addDeathPlayer(p);
 		
-		int i = 11;
-		for(UUID id : getAllPlayers())
-		{
-			if (i == 0) {continue;}
-			if (id == null) {continue;}
-			Player pl = Bukkit.getPlayer(id);
-			if (pl == null) {continue;}
-			if (!pl.isOnline()) {continue;}
-			
-			String _clr = "ßb";
-			int team = getPlayerTeam(pl);
-			if (team == 1) {_clr = "ße";}
-			_kills = playersMatchStats.getOrDefault(pl.getName()+"-Kills", 0);
-			_deaths = playersMatchStats.getOrDefault(pl.getName()+"-Deaths", 0);
-			
-			objective.getScore(_clr+pl.getName()+" ßfßló ße"+_kills+" ßfßló ße"+_deaths).setScore(i);
-		}
+		int team = getPlayerTeam(p);
+		if (team == 0) {defendKills++;}
+		if (team == 1) {attackKills++;}
 	}
 	
 	public int getPlayerTeam(Player pl)
@@ -788,7 +859,7 @@ public class Arena
 			list.add(id);
 		}
 		
-		for(UUID id : addDeathPlayers)
+		for(UUID id : deathPlayers)
 		{
 			if (list.contains(id)) {continue;}
 			list.add(id);
@@ -796,6 +867,9 @@ public class Arena
 		
 		return list;
 	}
+	
+	public void addBombPlanted(int count) {bombPlanted += count;}
+	public void addBombDefused(int count) {bombDefused += count;}
 	
 	public String getState()
 	{
@@ -944,11 +1018,11 @@ public class Arena
 	}
 
 	public ArrayList<UUID> getaddDeathPlayers() {
-		return addDeathPlayers;
+		return deathPlayers;
 	}
 
 	public void setaddDeathPlayers(ArrayList<UUID> addDeathPlayers) {
-		this.addDeathPlayers = addDeathPlayers;
+		this.deathPlayers = addDeathPlayers;
 	}
 
 	public ArrayList<UUID> getSpectators() {
@@ -1229,5 +1303,25 @@ public class Arena
 	public void setObjective(Objective objective)
 	{
 		this.objective = objective;
+	}
+
+	public Team getDefendTeam()
+	{
+		return defendTeam;
+	}
+
+	public void setDefendTeam(Team defendTeam)
+	{
+		this.defendTeam = defendTeam;
+	}
+
+	public Team getAttackTeam()
+	{
+		return attackTeam;
+	}
+
+	public void setAttackTeam(Team attackTeam)
+	{
+		this.attackTeam = attackTeam;
 	}
 }

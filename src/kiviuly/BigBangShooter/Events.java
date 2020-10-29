@@ -223,6 +223,29 @@ public class Events implements Listener
 		String title = e.getView().getTitle();
 		Arena arena = main.getPlayerArena(p);
 		
+		if (title.equals("§9§lВыбор арены"))
+		{
+			e.setCancelled(true);
+			ItemStack item = e.getCurrentItem();
+			if (item == null) {return;}
+			if (!item.hasItemMeta()) {return;}
+			ItemMeta meta = item.getItemMeta();
+			if (!meta.hasDisplayName()) {return;}
+			String itName = meta.getDisplayName();
+			arena = main.getArenaByName(itName);
+			if (arena == null) {p.closeInventory(); return;}
+			if (!arena.isEnabled || arena.isStarted) {return;}
+			
+			boolean b = arena.addPlayer(p);
+			if (b) {main.players.put(p.getUniqueId(), arena); main.refreshArenaInMenu(arena);}
+			else {p.sendMessage("§cОшибка арены.");}
+			return;
+		}
+		
+		
+		
+		
+		
 		if (title.equals("§9§lВыбор команды"))
 		{
 			e.setCancelled(true);
@@ -321,23 +344,6 @@ public class Events implements Listener
 			return;
 		}
 		
-		if (title.equals("§9§lВыбор арены"))
-		{
-			e.setCancelled(true);
-			ItemStack item = e.getCurrentItem();
-			if (item == null) {return;}
-			if (!item.hasItemMeta()) {return;}
-			ItemMeta meta = item.getItemMeta();
-			if (!meta.hasDisplayName()) {return;}
-			String itName = meta.getDisplayName();
-			arena = main.getArenaByName(itName);
-			if (arena == null) {p.closeInventory(); return;}
-			arena.addPlayer(p);
-			main.players.put(p.getUniqueId(), arena);
-			main.refreshArenaInMenu(arena);
-			return;
-		}
-		
 		if (title.equals("§9§lЗакладка бомбы"))
 		{
 			e.setCancelled(true);
@@ -388,6 +394,7 @@ public class Events implements Listener
 				pl.sendTitle("§e§lБОМБА ЗАЛОЖЕНА", "§eДо взрыва 45 секунд");
 			}
 			
+			arena.addBombPlanted(1);
 			arena.getPlantInventory().clear();
 			arena.getEditedBlocks().put(arena.getPlantedBomb(), Material.AIR);
 			arena.getPlantedBomb().getBlock().setType(arena.getBombMaterial());
@@ -453,6 +460,7 @@ public class Events implements Listener
 				else {pl.sendTitle("§a§lПобеда!", "§aБомба была обезврежена.");}
 			}
 			
+			arena.addBombDefused(1);
 			arena.getDefuseInventory().clear();
 			arena.setTime(8);
 			arena.isPlanted = false;
